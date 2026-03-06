@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-slate-950 text-slate-100 antialiased;
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply min-h-screen bg-gradient-to-b from-slate-950 via-slate-950 to-slate-900 text-slate-100;
+  }
+
+  .app-header {
+    @apply flex items-center justify-between gap-4 rounded-2xl bg-slate-900/60 px-5 py-4 shadow-subtle border border-slate-800/60 backdrop-blur-sm;
+  }
+
+  .app-title {
+    @apply text-xl font-semibold tracking-tight text-slate-50;
+  }
+
+  .board-grid {
+    @apply flex gap-3 overflow-x-auto pb-2;
+  }
+
+  .board-column {
+    @apply flex flex-col rounded-2xl bg-slate-900/60 border border-slate-800/60 shadow-subtle min-h-[300px] min-w-[200px] flex-1;
+  }
+
+  .board-column-header {
+    @apply flex items-center justify-between px-4 py-3 border-b border-slate-800/70 text-xs font-medium uppercase tracking-wide text-slate-400;
+  }
+
+  .board-column-body {
+    @apply flex-1 space-y-2.5 px-2.5 py-2.5 overflow-y-auto;
+  }
+
+  .card {
+    @apply rounded-xl bg-slate-800/40 border border-slate-700/30 p-3 transition-all duration-150 hover:bg-slate-800/70 hover:border-slate-600/40 cursor-pointer;
+  }
+
+  .section-card {
+    @apply rounded-2xl bg-slate-900/60 border border-slate-800/60 shadow-subtle p-5;
+  }
+
+  .primary-button {
+    @apply inline-flex items-center justify-center rounded-full bg-accent-soft px-4 py-2 text-sm font-medium text-slate-950 shadow-sm transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  .secondary-button {
+    @apply inline-flex items-center justify-center rounded-full border border-slate-700/60 bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-slate-700/50 hover:text-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950;
+  }
+
+  .ghost-button {
+    @apply inline-flex items-center justify-center rounded-lg p-2 text-slate-400 transition hover:bg-slate-800/60 hover:text-slate-200 focus-visible:outline-none;
+  }
+
+  .form-input {
+    @apply w-full rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none transition focus:border-accent-soft/50 focus:ring-1 focus:ring-accent-soft/20;
+  }
+
+  .form-select {
+    @apply w-full rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 outline-none transition focus:border-accent-soft/50 focus:ring-1 focus:ring-accent-soft/20;
+  }
+
+  .form-textarea {
+    @apply w-full rounded-lg border border-slate-700/60 bg-slate-800/50 px-3 py-2 text-sm text-slate-200 placeholder-slate-500 outline-none transition resize-y focus:border-accent-soft/50 focus:ring-1 focus:ring-accent-soft/20;
+  }
+
+  .label-text {
+    @apply block text-[11px] font-medium uppercase tracking-wider text-slate-500 mb-1.5;
+  }
+
+  .pill {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+}
+

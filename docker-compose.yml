@@ -1,0 +1,40 @@
+services:
+  mongo:
+    build:
+      context: ./mongo
+      dockerfile: Dockerfile
+    container_name: wedge-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: wedge-backend
+    environment:
+      # These environment variables are provided for future use in the
+      # backend; the current code defaults to localhost but can be wired
+      # to read these.
+      - MONGO_URI=mongodb://mongo:27017
+      - MONGO_DB_NAME=wedge
+    depends_on:
+      - mongo
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: wedge-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+volumes:
+  mongo_data:
