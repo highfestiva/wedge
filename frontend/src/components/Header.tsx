@@ -7,14 +7,14 @@ import { ProjectSelector } from "./ProjectSelector";
 import type { Project } from "../types";
 
 export const Header: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectPrefix } = useParams<{ projectPrefix: string }>();
   const navigate = useNavigate();
 
   const [queryResult] = useQuery({ query: PROJECTS_QUERY });
   const projects: Project[] = queryResult.data?.projects ?? [];
 
-  const handleSelect = (id: string) => {
-    navigate(`/projects/${id}/board`);
+  const handleSelect = (prefix: string) => {
+    navigate(`/projects/${prefix}/board`);
   };
 
   return (
@@ -33,7 +33,7 @@ export const Header: React.FC = () => {
       <div className="flex items-center gap-3">
         <ProjectSelector
           projects={projects}
-          currentProjectId={projectId}
+          currentProjectPrefix={projectPrefix}
           onSelect={handleSelect}
         />
         <ThemeToggle />

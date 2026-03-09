@@ -8,7 +8,12 @@ import type { Issue, IssueState } from "../types";
 // ---------------------------------------------------------------------------
 // urql mock — controlled via module-level variables
 // ---------------------------------------------------------------------------
-let mockQueryResult: { fetching: boolean; data?: unknown; error?: unknown } = {
+let mockProjectsResult: { fetching: boolean; data?: unknown; error?: unknown } = {
+  fetching: false,
+  data: { projects: [{ id: "default-id", name: "Default", prefix: "default", description: null, createdAt: "2025-01-01" }] },
+  error: undefined,
+};
+let mockIssuesResult: { fetching: boolean; data?: unknown; error?: unknown } = {
   fetching: false,
   data: undefined,
   error: undefined,
@@ -17,9 +22,12 @@ let mockUseQueryArgs: unknown = undefined;
 const mockMutationExecute = vi.fn();
 
 vi.mock("urql", () => ({
-  useQuery: (args: unknown) => {
+  useQuery: (args: { query: string; variables?: unknown; pause?: boolean }) => {
+    if (args.query.includes("Projects")) {
+      return [mockProjectsResult];
+    }
     mockUseQueryArgs = args;
-    return [mockQueryResult];
+    return [mockIssuesResult];
   },
   useMutation: () => [
     { fetching: false, data: undefined, error: undefined },
@@ -59,13 +67,13 @@ function LocationDisplay() {
   return <div data-testid="location-display">{loc.pathname}</div>;
 }
 
-function renderBoardPage(projectId = "default") {
+function renderBoardPage(projectPrefix = "default") {
   return render(
-    <MemoryRouter initialEntries={[`/projects/${projectId}/board`]}>
+    <MemoryRouter initialEntries={[`/projects/${projectPrefix}/board`]}>
       <Routes>
-        <Route path="/projects/:projectId/board" element={<BoardPage />} />
+        <Route path="/projects/:projectPrefix/board" element={<BoardPage />} />
         <Route
-          path="/projects/:projectId/issues/:identifier"
+          path="/projects/:projectPrefix/issues/:identifier"
           element={<LocationDisplay />}
         />
       </Routes>
@@ -77,7 +85,12 @@ function renderBoardPage(projectId = "default") {
 // Setup / teardown
 // ---------------------------------------------------------------------------
 beforeEach(() => {
-  mockQueryResult = { fetching: false, data: undefined, error: undefined };
+  mockProjectsResult = {
+    fetching: false,
+    data: { projects: [{ id: "default-id", name: "Default", prefix: "default", description: null, createdAt: "2025-01-01" }] },
+    error: undefined,
+  };
+  mockIssuesResult = { fetching: false, data: undefined, error: undefined };
   mockUseQueryArgs = undefined;
   mockMutationExecute.mockReset();
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -97,7 +110,7 @@ describe("BoardPage (Part B)", () => {
   // -----------------------------------------------------------------------
   it("B.1 — shows loading spinner while fetching issues", () => {
     // Given useQuery returns fetching: true
-    mockQueryResult = { fetching: true };
+    mockIssuesResult = { fetching: true };
 
     // When BoardPage is rendered
     renderBoardPage();
@@ -111,7 +124,7 @@ describe("BoardPage (Part B)", () => {
   // -----------------------------------------------------------------------
   it("B.2 — displays error message on query failure", () => {
     // Given useQuery returns an error
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: undefined,
       error: { message: "Network error" },
@@ -139,7 +152,7 @@ describe("BoardPage (Part B)", () => {
       id: "id-2",
       state: "Todo",
     });
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: { issues: { items: [issue1, issue2], cursor: null } },
     };
@@ -157,16 +170,20 @@ describe("BoardPage (Part B)", () => {
   // Test B.4 — Passes correct projectId variable to the query
   // -----------------------------------------------------------------------
   it("B.4 — passes correct projectId variable to the query", () => {
-    // Given the route path is /projects/my-project/board
-    mockQueryResult = { fetching: true };
+    // Given the route path is /projects/MY/board and project prefix MY resolves to id "my-project-id"
+    mockProjectsResult = {
+      fetching: false,
+      data: { projects: [{ id: "my-project-id", name: "My Project", prefix: "MY", description: null, createdAt: "2025-01-01" }] },
+    };
+    mockIssuesResult = { fetching: true };
 
     // When BoardPage renders and calls useQuery
-    renderBoardPage("my-project");
+    renderBoardPage("MY");
 
-    // Then the query variables include projectId: "my-project"
+    // Then the query variables include projectId resolved from the prefix
     expect(mockUseQueryArgs).toBeDefined();
     const args = mockUseQueryArgs as { variables: { projectId: string } };
-    expect(args.variables.projectId).toBe("my-project");
+    expect(args.variables.projectId).toBe("my-project-id");
   });
 
   // -----------------------------------------------------------------------
@@ -175,7 +192,7 @@ describe("BoardPage (Part B)", () => {
   it("B.5 — onMoveIssue triggers update mutation with new state", () => {
     // Given the board is rendered with an issue
     const issue = makeIssue({ identifier: "DEF-1", state: "Backlog" });
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: { issues: { items: [issue], cursor: null } },
     };
@@ -208,7 +225,7 @@ describe("BoardPage (Part B)", () => {
     // Given the board is rendered with an issue
     const user = userEvent.setup();
     const issue = makeIssue({ identifier: "DEF-1", title: "Clickable issue" });
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: { issues: { items: [issue], cursor: null } },
     };
@@ -229,7 +246,7 @@ describe("BoardPage (Part B)", () => {
   it("B.7 — onCreateIssue triggers UI for creating an issue", async () => {
     // Given the board is rendered
     const user = userEvent.setup();
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: { issues: { items: [], cursor: null } },
     };
@@ -257,7 +274,7 @@ describe("BoardPage Logging (Part D)", () => {
   it("D.7 — logs when data arrives", () => {
     // Given BoardPage is rendered and useQuery returns data
     const issue = makeIssue();
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: { issues: { items: [issue], cursor: null } },
     };
@@ -278,7 +295,7 @@ describe("BoardPage Logging (Part D)", () => {
   it("D.9 — logs mutation calls", () => {
     // Given BoardPage is rendered with issues
     const issue = makeIssue({ identifier: "DEF-1", state: "Backlog" });
-    mockQueryResult = {
+    mockIssuesResult = {
       fetching: false,
       data: { issues: { items: [issue], cursor: null } },
     };

@@ -3,23 +3,29 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "urql";
-import { ISSUES_QUERY } from "../graphql/queries";
+import { PROJECTS_QUERY, ISSUES_QUERY } from "../graphql/queries";
 import { UPDATE_ISSUE_MUTATION, CREATE_ISSUE_MUTATION } from "../graphql/mutations";
 import { BoardView } from "../components/BoardView";
 import { CreateIssueForm } from "../components/CreateIssueForm";
 import { createLogger } from "../utils/logger";
-import type { IssueState, CreateIssueInput } from "../types";
+import type { IssueState, CreateIssueInput, Project } from "../types";
 
 const log = createLogger("board");
 
 export const BoardPage: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectPrefix } = useParams<{ projectPrefix: string }>();
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
 
+  const [projectsResult] = useQuery({ query: PROJECTS_QUERY });
+  const projects: Project[] = projectsResult.data?.projects ?? [];
+  const project = projects.find((p) => p.prefix === projectPrefix);
+  const projectId = project?.id ?? "";
+
   const [queryResult] = useQuery({
     query: ISSUES_QUERY,
-    variables: { projectId: projectId ?? "" },
+    variables: { projectId },
+    pause: !projectId,
   });
 
   const [, executeUpdateMutation] = useMutation(UPDATE_ISSUE_MUTATION);
@@ -37,7 +43,7 @@ export const BoardPage: React.FC = () => {
   };
 
   const handleIssueClick = (identifier: string) => {
-    navigate(`/projects/${projectId}/issues/${identifier}`);
+    navigate(`/projects/${projectPrefix}/issues/${identifier}`);
   };
 
   const handleCreateIssue = () => {

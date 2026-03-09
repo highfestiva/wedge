@@ -43,12 +43,12 @@ function LocationDisplay() {
   return <div data-testid="location-display">{loc.pathname}</div>;
 }
 
-function renderHeader(initialPath = "/projects/proj-1/board") {
+function renderHeader(initialPath = "/projects/ALP/board") {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route
-          path="/projects/:projectId/board"
+          path="/projects/:projectPrefix/board"
           element={
             <>
               <Header />
@@ -110,10 +110,10 @@ describe("Header with Projects (Part B)", () => {
     renderHeader();
 
     // Then the selector contains options for both projects
-    expect(screen.getByTestId("project-option-proj-1")).toBeInTheDocument();
-    expect(screen.getByTestId("project-option-proj-2")).toBeInTheDocument();
-    expect(screen.getByTestId("project-option-proj-1").textContent).toBe("Alpha");
-    expect(screen.getByTestId("project-option-proj-2").textContent).toBe("Beta");
+    expect(screen.getByTestId("project-option-ALP")).toBeInTheDocument();
+    expect(screen.getByTestId("project-option-BET")).toBeInTheDocument();
+    expect(screen.getByTestId("project-option-ALP").textContent).toBe("Alpha");
+    expect(screen.getByTestId("project-option-BET").textContent).toBe("Beta");
   });
 
   // -----------------------------------------------------------------------
@@ -123,20 +123,20 @@ describe("Header with Projects (Part B)", () => {
     // Given the header is rendered with projects
     const user = userEvent.setup();
     const proj1 = makeProject({ id: "proj-1", name: "Alpha" });
-    const proj2 = makeProject({ id: "proj-2", name: "Beta" });
+    const proj2 = makeProject({ id: "proj-2", name: "Beta", prefix: "BET" });
     mockQueryResult = {
       fetching: false,
       data: { projects: [proj1, proj2] },
     };
-    renderHeader("/projects/proj-1/board");
+    renderHeader("/projects/ALP/board");
 
     // When a different project is selected
     const selector = screen.getByTestId("project-selector");
-    await user.selectOptions(selector, "proj-2");
+    await user.selectOptions(selector, "BET");
 
     // Then the URL changes to the new project's board
     expect(screen.getByTestId("location-display").textContent).toBe(
-      "/projects/proj-2/board"
+      "/projects/BET/board"
     );
   });
 });

@@ -20,11 +20,11 @@ const projects: Project[] = [
 describe("7.1 Project selector renders all projects", () => {
   it("given projects, when rendered, then all projects appear as options", () => {
     // Given / When
-    render(<ProjectSelector projects={projects} currentProjectId="p1" />);
+    render(<ProjectSelector projects={projects} currentProjectPrefix="WDG" />);
 
     // Then
-    expect(screen.getByTestId("project-option-p1")).toHaveTextContent("Wedge");
-    expect(screen.getByTestId("project-option-p2")).toHaveTextContent("Other");
+    expect(screen.getByTestId("project-option-WDG")).toHaveTextContent("Wedge");
+    expect(screen.getByTestId("project-option-OTH")).toHaveTextContent("Other");
   });
 });
 
@@ -32,17 +32,17 @@ describe("7.1 Project selector renders all projects", () => {
 // 7.2 Selecting a project calls onSelect
 // ---------------------------------------------------------------------------
 describe("7.2 Selecting a project navigates to its board", () => {
-  it("given projects, when a different project is selected, then onSelect is called with the project id", async () => {
+  it("given projects, when a different project is selected, then onSelect is called with the project prefix", async () => {
     // Given
     const onSelect = vi.fn();
     const user = userEvent.setup();
-    render(<ProjectSelector projects={projects} currentProjectId="p1" onSelect={onSelect} />);
+    render(<ProjectSelector projects={projects} currentProjectPrefix="WDG" onSelect={onSelect} />);
 
     // When
-    await user.selectOptions(screen.getByTestId("project-selector"), "p2");
+    await user.selectOptions(screen.getByTestId("project-selector"), "OTH");
 
     // Then
-    expect(onSelect).toHaveBeenCalledWith("p2");
+    expect(onSelect).toHaveBeenCalledWith("OTH");
   });
 });
 
@@ -50,11 +50,11 @@ describe("7.2 Selecting a project navigates to its board", () => {
 // 7.3 Current project is highlighted / selected
 // ---------------------------------------------------------------------------
 describe("7.3 Current project is highlighted / selected", () => {
-  it("given projects and currentProjectId, when rendered, then the current project is selected in the dropdown", () => {
+  it("given projects and currentProjectPrefix, when rendered, then the current project is selected in the dropdown", () => {
     // Given / When
-    render(<ProjectSelector projects={projects} currentProjectId="p1" />);
+    render(<ProjectSelector projects={projects} currentProjectPrefix="WDG" />);
 
     // Then
-    expect(screen.getByTestId("project-selector")).toHaveValue("p1");
+    expect(screen.getByTestId("project-selector")).toHaveValue("WDG");
   });
 });

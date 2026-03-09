@@ -55,14 +55,14 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
   } as Issue;
 }
 
-function renderDetailPage(identifier = "PROJ-1", projectId = "proj") {
+function renderDetailPage(identifier = "PROJ-1", projectPrefix = "proj") {
   return render(
     <MemoryRouter
-      initialEntries={[`/projects/${projectId}/issues/${identifier}`]}
+      initialEntries={[`/projects/${projectPrefix}/issues/${identifier}`]}
     >
       <Routes>
         <Route
-          path="/projects/:projectId/issues/:identifier"
+          path="/projects/:projectPrefix/issues/:identifier"
           element={<IssueDetailPage />}
         />
       </Routes>

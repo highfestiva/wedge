@@ -38,11 +38,11 @@ function renderWithRouter(initialEntries: string[]) {
     <MemoryRouter initialEntries={initialEntries}>
       <Routes>
         <Route
-          path="/projects/:projectId/board"
+          path="/projects/:projectPrefix/board"
           element={<BoardView issues={[makeIssue()]} />}
         />
         <Route
-          path="/projects/:projectId/issues/:identifier"
+          path="/projects/:projectPrefix/issues/:identifier"
           element={<IssueDetailView issue={makeIssue()} />}
         />
         <Route path="*" element={<NotFound />} />
@@ -101,7 +101,7 @@ describe("10.4 Clicking an issue card navigates to detail", () => {
       <MemoryRouter initialEntries={["/projects/proj-1/board"]}>
         <Routes>
           <Route
-            path="/projects/:projectId/board"
+            path="/projects/:projectPrefix/board"
             element={
               <BoardView
                 issues={[makeIssue()]}
@@ -114,7 +114,7 @@ describe("10.4 Clicking an issue card navigates to detail", () => {
             }
           />
           <Route
-            path="/projects/:projectId/issues/:identifier"
+            path="/projects/:projectPrefix/issues/:identifier"
             element={<IssueDetailView issue={makeIssue()} />}
           />
         </Routes>

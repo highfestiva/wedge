@@ -32,14 +32,14 @@ export const App: React.FC = () => {
           <Header />
           <main>
             <Routes>
-              <Route path="/projects/:projectId/board" element={<BoardPage />} />
+              <Route path="/projects/:projectPrefix/board" element={<BoardPage />} />
               <Route
-                path="/projects/:projectId/issues/:identifier"
+                path="/projects/:projectPrefix/issues/:identifier"
                 element={<IssueDetailPage />}
               />
               <Route
                 path="/"
-                element={<Navigate to="/projects/default/board" replace />}
+                element={<Navigate to="/projects/DFT/board" replace />}
               />
               <Route path="*" element={<NotFound />} />
             </Routes>
