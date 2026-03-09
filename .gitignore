@@ -4,3 +4,4 @@ node_modules/
 agentic-workflow/
 features/
 .aider*
+.github/
