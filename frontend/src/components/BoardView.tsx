@@ -69,7 +69,13 @@ export const BoardView: React.FC<BoardViewProps> = ({
         {ISSUE_STATES.map((state) => {
           const columnIssues = issuesByState(state);
           return (
-            <div key={state} data-testid={`column-${state}`} className="board-column">
+            <div key={state} data-testid={`column-${state}`} className="board-column"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => {
+                const id = e.dataTransfer.getData("text/plain");
+                if (id) onMoveIssue?.(id, state);
+              }}
+            >
               <div className="board-column-header">
                 <span data-testid={`column-header-${state}`}>
                   {state}{" "}
@@ -80,11 +86,18 @@ export const BoardView: React.FC<BoardViewProps> = ({
               </div>
               <div className="board-column-body">
                 {columnIssues.map((issue) => (
-                  <IssueCard
+                  <div
                     key={issue.identifier}
-                    issue={issue}
-                    onClick={() => onIssueClick?.(issue.identifier)}
-                  />
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData("text/plain", issue.identifier)
+                    }
+                  >
+                    <IssueCard
+                      issue={issue}
+                      onClick={() => onIssueClick?.(issue.identifier)}
+                    />
+                  </div>
                 ))}
               </div>
             </div>

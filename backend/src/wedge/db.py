@@ -33,7 +33,7 @@ def get_db() -> AsyncIOMotorDatabase:
 
 
 async def init_collections(db: AsyncIOMotorDatabase) -> None:
-    """Create collections and indices.  Idempotent."""
+    """Create collections and indices. Only for tests."""
     # Create collections if they don't exist
     existing = await db.list_collection_names()
     if "projects" not in existing:
@@ -49,10 +49,10 @@ async def init_collections(db: AsyncIOMotorDatabase) -> None:
 
 
 async def seed_default_project(db: AsyncIOMotorDatabase) -> None:
-    """Insert the default 'Wedge' project if it doesn't already exist."""
+    """Insert the default 'Wedge' project if it doesn't already exist. Only for tests"""
     from wedge.repository.project_repository import ProjectRepository
 
     repo = ProjectRepository(db)
     projects = await repo.list_all()
-    if not any(p.prefix == "WDG" for p in projects):
-        await repo.create(name="Wedge", prefix="WDG", description="Default project")
+    if not any(p.prefix == "DFT" for p in projects):
+        await repo.create(name="Default", prefix="DFT", description="Default project")

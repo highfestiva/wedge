@@ -55,7 +55,8 @@ if (!existingProject) {
   });
 
   var projectId = projectInsert.insertedId;
-  var projectIdStr = projectId.str; // store as string, like the backend does
+  var projectIdStr = projectId.toHexString(); // store as string
+  print(`Inserted default project with ID: ${projectIdStr}`);
 
   // Dummy users
   db.users.insertMany([

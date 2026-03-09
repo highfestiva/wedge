@@ -9,6 +9,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - wedge_network
 
   backend:
     build:
@@ -25,16 +27,26 @@ services:
       - mongo
     ports:
       - "8000:8000"
+    networks:
+      - wedge_network
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: wedge-frontend
+    environment:
+      - API_PROXY_TARGET=http://backend:8000
     depends_on:
       - backend
     ports:
       - "3000:3000"
+    networks:
+      - wedge_network
 
 volumes:
   mongo_data:
+
+networks:
+  wedge_network:
+    external: true

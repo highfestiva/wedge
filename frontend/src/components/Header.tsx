@@ -1,8 +1,22 @@
 import React from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery } from "urql";
+import { PROJECTS_QUERY } from "../graphql/queries";
 import { ThemeToggle } from "./ThemeToggle";
 import { ProjectSelector } from "./ProjectSelector";
+import type { Project } from "../types";
 
 export const Header: React.FC = () => {
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+
+  const [queryResult] = useQuery({ query: PROJECTS_QUERY });
+  const projects: Project[] = queryResult.data?.projects ?? [];
+
+  const handleSelect = (id: string) => {
+    navigate(`/projects/${id}/board`);
+  };
+
   return (
     <header data-testid="header" className="app-header">
       <div className="flex items-center gap-3">
@@ -17,7 +31,11 @@ export const Header: React.FC = () => {
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <ProjectSelector projects={[]} />
+        <ProjectSelector
+          projects={projects}
+          currentProjectId={projectId}
+          onSelect={handleSelect}
+        />
         <ThemeToggle />
       </div>
     </header>

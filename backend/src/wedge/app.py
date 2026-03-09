@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+from contextlib import asynccontextmanager
 from time import perf_counter
 
 from starlette.applications import Starlette
@@ -12,6 +14,7 @@ from starlette.requests import Request
 from starlette.routing import Route
 from strawberry.asgi import GraphQL
 
+from wedge.db import connect, disconnect
 from wedge.graphql.schema import schema
 
 
@@ -53,6 +56,19 @@ class WedgeGraphQL(GraphQL):
 
 graphql_app = WedgeGraphQL(schema)
 
+
+@asynccontextmanager
+async def lifespan(app):
+    mongo_uri = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+    db_name = os.environ.get("MONGO_DB", "wedge")
+    db = await connect(mongo_uri, db_name)
+    app.state.db = db
+    logger.info("Database connected and initialised")
+    yield
+    await disconnect()
+    logger.info("Database disconnected")
+
+
 app = Starlette(
     routes=[
         Route("/graphql", graphql_app),
@@ -60,4 +76,5 @@ app = Starlette(
     middleware=[
         Middleware(RequestLoggingMiddleware),
     ],
+    lifespan=lifespan,
 )
