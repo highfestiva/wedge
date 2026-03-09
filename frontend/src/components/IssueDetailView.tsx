@@ -30,7 +30,7 @@ export const IssueDetailView: React.FC<IssueDetailViewProps> = ({
   if (loading) {
     return (
       <div data-testid="loading-spinner" className="flex items-center justify-center py-24">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
+        <div className="flex flex-col items-center gap-3 text-t-faint">
           <svg className="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -44,7 +44,7 @@ export const IssueDetailView: React.FC<IssueDetailViewProps> = ({
   if (error) {
     return (
       <div data-testid="error-message" className="mx-auto max-w-lg py-12">
-        <div className="rounded-xl border border-red-500/20 bg-red-950/30 px-5 py-4 text-sm text-red-300">
+        <div className="rounded-xl border border-t-error-border bg-t-error-bg px-5 py-4 text-sm text-t-error-text">
           {error}
         </div>
       </div>
@@ -54,7 +54,7 @@ export const IssueDetailView: React.FC<IssueDetailViewProps> = ({
   if (!issue) {
     return (
       <div data-testid="not-found" className="flex flex-col items-center justify-center py-24 text-center">
-        <p className="text-sm text-slate-500">Issue not found</p>
+        <p className="text-sm text-t-faint">Issue not found</p>
       </div>
     );
   }
@@ -62,13 +62,13 @@ export const IssueDetailView: React.FC<IssueDetailViewProps> = ({
   return (
     <div data-testid="issue-detail" className="mx-auto max-w-4xl space-y-5">
       {/* Meta bar */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
-        <span data-testid="issue-identifier" className="font-semibold text-slate-400">{issue.identifier}</span>
-        <span className="text-slate-700">&middot;</span>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-t-faint">
+        <span data-testid="issue-identifier" className="font-semibold text-t-muted">{issue.identifier}</span>
+        <span className="text-t-separator">&middot;</span>
         <span data-testid="issue-creator">{issue.creator}</span>
-        <span className="text-slate-700">&middot;</span>
+        <span className="text-t-separator">&middot;</span>
         <span data-testid="issue-created-at">{issue.createdAt}</span>
-        <span className="ml-auto text-slate-600">
+        <span className="ml-auto text-t-dim">
           Updated&nbsp;<span data-testid="issue-updated-at">{issue.updatedAt}</span>
         </span>
       </div>
@@ -81,7 +81,7 @@ export const IssueDetailView: React.FC<IssueDetailViewProps> = ({
         onBlur={(e) =>
           onUpdateField?.("title", e.currentTarget.textContent ?? "")
         }
-        className="text-2xl font-semibold text-slate-50 tracking-tight outline-none rounded-lg px-2 -mx-2 py-1 focus:bg-slate-800/40 transition"
+        className="text-2xl font-semibold text-t-heading tracking-tight outline-none rounded-lg px-2 -mx-2 py-1 focus:bg-t-focus-bg transition"
       >
         {issue.title}
       </h1>
@@ -174,22 +174,22 @@ export const IssueDetailView: React.FC<IssueDetailViewProps> = ({
           <div data-testid="history-section" className="space-y-2">
             <h3 className="label-text">Activity</h3>
             {issue.history.length === 0 && (
-              <p className="text-xs text-slate-600">No activity yet.</p>
+              <p className="text-xs text-t-dim">No activity yet.</p>
             )}
             {issue.history.map((h) => (
               <div
                 key={h.id}
                 data-testid={`history-entry-${h.id}`}
-                className="flex flex-wrap items-baseline gap-x-1 rounded-lg bg-slate-800/30 border border-slate-800/40 px-3 py-2 text-xs text-slate-400"
+                className="flex flex-wrap items-baseline gap-x-1 rounded-lg bg-t-inset border border-t-border-subtle px-3 py-2 text-xs text-t-muted"
               >
-                <em className="not-italic font-medium text-slate-300">{h.actor}</em>
+                <em className="not-italic font-medium text-t-tertiary">{h.actor}</em>
                 <span>changed</span>
-                <em className="not-italic font-medium text-slate-300">{h.field}</em>
+                <em className="not-italic font-medium text-t-tertiary">{h.field}</em>
                 <span>from</span>
-                <em className="not-italic text-slate-300">{h.fromValue ?? "—"}</em>
+                <em className="not-italic text-t-tertiary">{h.fromValue ?? "—"}</em>
                 <span>to</span>
-                <em className="not-italic text-slate-300">{h.toValue}</em>
-                <span className="ml-auto text-slate-600">{h.timestamp}</span>
+                <em className="not-italic text-t-tertiary">{h.toValue}</em>
+                <span className="ml-auto text-t-dim">{h.timestamp}</span>
               </div>
             ))}
           </div>

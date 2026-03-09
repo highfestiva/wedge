@@ -29,7 +29,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
   if (loading) {
     return (
       <div data-testid="loading-spinner" className="flex items-center justify-center py-24">
-        <div className="flex flex-col items-center gap-3 text-slate-500">
+        <div className="flex flex-col items-center gap-3 text-t-faint">
           <svg className="h-6 w-6 animate-spin" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -43,7 +43,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
   if (error) {
     return (
       <div data-testid="error-message" className="mx-auto max-w-lg py-12">
-        <div className="rounded-xl border border-red-500/20 bg-red-950/30 px-5 py-4 text-sm text-red-300">
+        <div className="rounded-xl border border-t-error-border bg-t-error-bg px-5 py-4 text-sm text-t-error-text">
           {error}
         </div>
       </div>
@@ -56,7 +56,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
   return (
     <div data-testid="board" className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-slate-400 tracking-wide">Board</h2>
+        <h2 className="text-sm font-medium text-t-muted tracking-wide">Board</h2>
         <button
           data-testid="create-issue-btn"
           onClick={onCreateIssue}
@@ -79,7 +79,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
               <div className="board-column-header">
                 <span data-testid={`column-header-${state}`}>
                   {state}{" "}
-                  <span className="ml-1 rounded-full bg-slate-800 px-1.5 py-0.5 text-[10px] tabular-nums text-slate-500">
+                  <span className="ml-1 rounded-full bg-t-badge px-1.5 py-0.5 text-[10px] tabular-nums text-t-faint">
                     ({columnIssues.length})
                   </span>
                 </span>

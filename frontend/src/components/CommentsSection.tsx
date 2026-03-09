@@ -23,7 +23,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
       <h3 className="label-text">Comments</h3>
 
       {comments.length === 0 && (
-        <p className="text-xs text-slate-600">No comments yet.</p>
+        <p className="text-xs text-t-dim">No comments yet.</p>
       )}
 
       <div className="space-y-2">
@@ -31,17 +31,17 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
           <div
             key={c.id}
             data-testid={`comment-${c.id}`}
-            className="rounded-lg bg-slate-800/30 border border-slate-800/40 px-3 py-2.5"
+            className="rounded-lg bg-t-inset border border-t-border-subtle px-3 py-2.5"
           >
             <div className="flex items-center justify-between gap-2 mb-1">
-              <strong data-testid="comment-author" className="text-xs font-semibold text-slate-300">
+              <strong data-testid="comment-author" className="text-xs font-semibold text-t-tertiary">
                 {c.author}
               </strong>
-              <time data-testid="comment-time" className="text-[11px] text-slate-600">
+              <time data-testid="comment-time" className="text-[11px] text-t-dim">
                 {c.createdAt}
               </time>
             </div>
-            <p data-testid="comment-body" className="text-sm text-slate-300 leading-relaxed">
+            <p data-testid="comment-body" className="text-sm text-t-tertiary leading-relaxed">
               {c.body}
             </p>
           </div>

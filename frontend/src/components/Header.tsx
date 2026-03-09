@@ -25,7 +25,7 @@ export const Header: React.FC = () => {
         </div>
         <div>
           <h1 className="app-title">Wedge</h1>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-t-muted">
             An almost sensible issue tracker.
           </p>
         </div>
