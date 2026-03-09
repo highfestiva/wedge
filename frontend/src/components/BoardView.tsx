@@ -22,26 +22,28 @@ export interface BoardViewProps {
 const DropZone: React.FC<{
   state: IssueState;
   index: number;
+  active: boolean;
   onDrop: (identifier: string, state: IssueState, index: number) => void;
-}> = ({ state, index, onDrop }) => {
-  const [active, setActive] = useState(false);
+  onActivate: (key: string) => void;
+  onDeactivate: (key: string) => void;
+}> = ({ state, index, active, onDrop, onActivate, onDeactivate }) => {
+  const key = `${state}-${index}`;
 
   return (
     <div
-      data-testid={`drop-zone-${state}-${index}`}
+      data-testid={`drop-zone-${key}`}
       data-drop-active={active ? "true" : undefined}
-      className={`h-1 transition-all ${active ? "h-2 bg-blue-400 rounded" : ""}`}
+      className={`transition-all ${active ? "h-20" : "h-1"}`}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        setActive(true);
+        onActivate(key);
       }}
-      onDragLeave={() => setActive(false)}
+      onDragLeave={() => onDeactivate(key)}
       onDrop={(e) => {
         e.stopPropagation();
         const id = e.dataTransfer.getData("text/plain");
         if (id) {
-          setActive(false);
           onDrop(id, state, index);
         }
       }}
@@ -57,8 +59,21 @@ export const BoardView: React.FC<BoardViewProps> = ({
   onCreateIssue,
   onIssueClick,
 }) => {
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
+
+  const activateDropZone = useCallback((key: string) => {
+    setActiveDropZone(key);
+  }, []);
+
+  const deactivateDropZone = useCallback((key: string) => {
+    setActiveDropZone((prev) => (prev === key ? null : prev));
+  }, []);
+
   const handleDropZone = useCallback(
     (identifier: string, state: IssueState, index: number) => {
+      setDraggingId(null);
+      setActiveDropZone(null);
       onMoveIssue?.(identifier, state, index);
     },
     [onMoveIssue],
@@ -113,7 +128,11 @@ export const BoardView: React.FC<BoardViewProps> = ({
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 const id = e.dataTransfer.getData("text/plain");
-                if (id) onMoveIssue?.(id, state, columnIssues.length);
+                if (id) {
+                  setDraggingId(null);
+                  setActiveDropZone(null);
+                  onMoveIssue?.(id, state, columnIssues.length);
+                }
               }}
             >
               <div className="board-column-header">
@@ -125,21 +144,46 @@ export const BoardView: React.FC<BoardViewProps> = ({
                 </span>
               </div>
               <div className="board-column-body">
-                <DropZone state={state} index={0} onDrop={handleDropZone} />
+                <DropZone state={state} index={0} active={activeDropZone === `${state}-0`} onDrop={handleDropZone} onActivate={activateDropZone} onDeactivate={deactivateDropZone} />
                 {columnIssues.map((issue, i) => (
                   <React.Fragment key={issue.identifier}>
                     <div
                       draggable
-                      onDragStart={(e) =>
-                        e.dataTransfer.setData("text/plain", issue.identifier)
-                      }
+                      className={draggingId === issue.identifier ? "opacity-0" : ""}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", issue.identifier);
+                        requestAnimationFrame(() => setDraggingId(issue.identifier));
+                      }}
+                      onDragEnd={() => {
+                        setDraggingId(null);
+                        setActiveDropZone(null);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const midY = rect.top + rect.height / 2;
+                        const dropIndex = e.clientY < midY ? i : i + 1;
+                        setActiveDropZone(`${state}-${dropIndex}`);
+                      }}
+                      onDrop={(e) => {
+                        e.stopPropagation();
+                        const id = e.dataTransfer.getData("text/plain");
+                        if (id) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const midY = rect.top + rect.height / 2;
+                          const dropIndex = e.clientY < midY ? i : i + 1;
+                          setDraggingId(null);
+                          setActiveDropZone(null);
+                          onMoveIssue?.(id, state, dropIndex);
+                        }
+                      }}
                     >
                       <IssueCard
                         issue={issue}
                         onClick={() => onIssueClick?.(issue.identifier)}
                       />
                     </div>
-                    <DropZone state={state} index={i + 1} onDrop={handleDropZone} />
+                    <DropZone state={state} index={i + 1} active={activeDropZone === `${state}-${i + 1}`} onDrop={handleDropZone} onActivate={activateDropZone} onDeactivate={deactivateDropZone} />
                   </React.Fragment>
                 ))}
               </div>
