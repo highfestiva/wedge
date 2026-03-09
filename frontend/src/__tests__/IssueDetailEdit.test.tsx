@@ -24,6 +24,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     url: "/issues/WDG-1",
     comments: [],
     history: [],
+    sortOrder: 0,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
     ...overrides,

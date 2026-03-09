@@ -59,6 +59,7 @@ export interface Issue {
   url: string;
   comments: Comment[];
   history: HistoryEntry[];
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -102,4 +103,5 @@ export interface UpdateIssueInput {
   priority?: Priority;
   labels?: string[];
   assignee?: string;
+  sortOrder?: number;
 }

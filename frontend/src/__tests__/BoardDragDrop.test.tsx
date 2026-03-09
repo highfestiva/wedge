@@ -8,7 +8,7 @@
  * optimistic UI updates happen, and reverts occur on failure.
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import { BoardView } from "../components/BoardView";
 import type { Issue, IssueState } from "../types";
 
@@ -27,6 +27,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     url: "/issues/WDG-1",
     comments: [],
     history: [],
+    sortOrder: 0,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T00:00:00Z",
     ...overrides,
@@ -108,5 +109,94 @@ describe("2.4 Column counts update after drag", () => {
     // Then
     expect(screen.getByTestId("column-header-Todo")).toHaveTextContent("Todo (0)");
     expect(screen.getByTestId("column-header-In Progress")).toHaveTextContent("In Progress (1)");
+  });
+});
+
+// ===========================================================================
+// Sort Order — Part 7: onMoveIssue Callback Signature Change
+// ===========================================================================
+describe("Sort Order Part 7 — onMoveIssue callback signature change", () => {
+  // -----------------------------------------------------------------------
+  // Test 7.1 — onMoveIssue receives three arguments: identifier, newState, targetIndex
+  // -----------------------------------------------------------------------
+  it("7.1 — onMoveIssue callback receives three arguments: identifier, newState, targetIndex", () => {
+    // Given BoardView is rendered with issues and an onMoveIssue spy
+    const onMoveIssue = vi.fn();
+    const issues = [
+      makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Backlog" }),
+      makeIssue({ identifier: "WDG-2", id: "2", sortOrder: 2.0, state: "Backlog" }),
+    ];
+    render(<BoardView issues={issues} onMoveIssue={onMoveIssue} />);
+
+    // When a card is dropped onto a drop zone in a column
+    const card = screen.getByTestId("issue-card-WDG-1").closest("[draggable]")!;
+    const dropZone = screen.getByTestId("drop-zone-Backlog-1");
+    const dataTransferData: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { dataTransferData[k] = v; },
+      getData: (k: string) => dataTransferData[k] ?? "",
+    };
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    // Then the spy is called with (identifier, newState, targetIndex) — three arguments
+    expect(onMoveIssue).toHaveBeenCalledWith("WDG-1", "Backlog", expect.any(Number));
+    expect(onMoveIssue.mock.calls[0]).toHaveLength(3);
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 7.2 — Cross-column drag fires onMoveIssue with correct column and position
+  // -----------------------------------------------------------------------
+  it("7.2 — cross-column drag fires onMoveIssue with correct column and position", () => {
+    // Given BoardView with issues in "Backlog" and "In Progress"
+    const onMoveIssue = vi.fn();
+    const issues = [
+      makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Backlog" }),
+      makeIssue({ identifier: "WDG-A", id: "a", sortOrder: 1.0, state: "In Progress" }),
+      makeIssue({ identifier: "WDG-B", id: "b", sortOrder: 2.0, state: "In Progress" }),
+    ];
+    render(<BoardView issues={issues} onMoveIssue={onMoveIssue} />);
+
+    // When a "Backlog" issue is dropped at a specific position in "In Progress"
+    const card = screen.getByTestId("issue-card-WDG-1").closest("[draggable]")!;
+    const dropZone = screen.getByTestId("drop-zone-In Progress-1");
+    const dataTransferData: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { dataTransferData[k] = v; },
+      getData: (k: string) => dataTransferData[k] ?? "",
+    };
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    // Then onMoveIssue is called with the issue identifier, "In Progress", and the correct target index
+    expect(onMoveIssue).toHaveBeenCalledWith("WDG-1", "In Progress", 1);
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 7.3 — Column-level drop (not on a specific drop zone) appends at end
+  // -----------------------------------------------------------------------
+  it("7.3 — column-level drop (not on a specific drop zone) appends at end", () => {
+    // Given BoardView with two issues in a column
+    const onMoveIssue = vi.fn();
+    const issues = [
+      makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Todo" }),
+      makeIssue({ identifier: "WDG-2", id: "2", sortOrder: 2.0, state: "Todo" }),
+      makeIssue({ identifier: "WDG-X", id: "x", sortOrder: 1.0, state: "Backlog" }),
+    ];
+    render(<BoardView issues={issues} onMoveIssue={onMoveIssue} />);
+
+    // When an issue from another column is dropped on the column container (not on a specific drop zone between cards)
+    const card = screen.getByTestId("issue-card-WDG-X").closest("[draggable]")!;
+    const column = screen.getByTestId("column-Todo");
+    const dataTransferData: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { dataTransferData[k] = v; },
+      getData: (k: string) => dataTransferData[k] ?? "",
+    };
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(column, { dataTransfer });
+
+    // Then onMoveIssue is called with targetIndex equal to the number of issues in the target column (append)
+    expect(onMoveIssue).toHaveBeenCalledWith("WDG-X", "Todo", 2);
   });
 });

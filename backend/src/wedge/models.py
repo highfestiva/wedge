@@ -82,6 +82,7 @@ class Issue:
     labels: list[str] = field(default_factory=list)
     comments: list[Comment] = field(default_factory=list)
     history: list[HistoryEntry] = field(default_factory=list)
+    sort_order: float = 0.0
 
 
 @dataclass

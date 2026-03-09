@@ -326,3 +326,171 @@ class TestMutationDeleteIssueNotFound:
         # Then
         data = response.json()
         assert "errors" in data
+
+
+# ===========================================================================
+# Sort Order — New Feature Tests
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# 7.1 Mutation createIssue without sortOrder uses priority-based default
+# ---------------------------------------------------------------------------
+
+class TestMutationCreateIssueSortOrderDefault:
+    async def test_create_issue_priority_based_sort_order(self, gql_client: AsyncClient, db):
+        """Given a project exists,
+        when sending a createIssue mutation with priority='high' and no sortOrder,
+        then the response includes sortOrder: 1.0."""
+        # Given
+        repo = ProjectRepository(db)
+        project = await repo.create(name="Wedge", prefix="WDG")
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    mutation($pid: String!, $title: String!, $priority: String) {
+                        createIssue(projectId: $pid, title: $title, priority: $priority) {
+                            identifier sortOrder priority
+                        }
+                    }
+                """,
+                "variables": {"pid": project.id, "title": "High priority", "priority": "high"},
+            },
+            headers={"X-User": "alice@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        issue = data["data"]["createIssue"]
+        assert issue["sortOrder"] == 1.0
+
+
+# ---------------------------------------------------------------------------
+# 7.2 Mutation createIssue with explicit sortOrder
+# ---------------------------------------------------------------------------
+
+class TestMutationCreateIssueExplicitSortOrder:
+    async def test_create_issue_explicit_sort_order(self, gql_client: AsyncClient, db):
+        """Given a project exists,
+        when sending a createIssue mutation with sortOrder: 9.5,
+        then the response includes sortOrder: 9.5."""
+        # Given
+        repo = ProjectRepository(db)
+        project = await repo.create(name="Wedge", prefix="WDG")
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    mutation($pid: String!, $title: String!, $sortOrder: Float) {
+                        createIssue(projectId: $pid, title: $title, sortOrder: $sortOrder) {
+                            identifier sortOrder
+                        }
+                    }
+                """,
+                "variables": {"pid": project.id, "title": "Explicit sort", "sortOrder": 9.5},
+            },
+            headers={"X-User": "alice@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        issue = data["data"]["createIssue"]
+        assert issue["sortOrder"] == 9.5
+
+
+# ---------------------------------------------------------------------------
+# 7.3 Mutation updateIssue with sortOrder
+# ---------------------------------------------------------------------------
+
+class TestMutationUpdateIssueSortOrder:
+    async def test_update_issue_sort_order(self, gql_client: AsyncClient, db):
+        """Given an issue exists,
+        when sending an updateIssue mutation with sortOrder: 2.5,
+        then the response includes sortOrder: 2.5 and a history entry."""
+        # Given
+        proj_repo = ProjectRepository(db)
+        project = await proj_repo.create(name="Wedge", prefix="WDG")
+        issue_repo = IssueRepository(db)
+        issue = await issue_repo.create(
+            project_id=project.id, title="To reorder", creator="alice@test.com"
+        )
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    mutation($id: String!, $sortOrder: Float) {
+                        updateIssue(identifier: $id, sortOrder: $sortOrder) {
+                            identifier sortOrder
+                            history { field fromValue toValue }
+                        }
+                    }
+                """,
+                "variables": {"id": issue.identifier, "sortOrder": 2.5},
+            },
+            headers={"X-User": "editor@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        updated = data["data"]["updateIssue"]
+        assert updated["sortOrder"] == 2.5
+        assert any(h["field"] == "sort_order" for h in updated["history"])
+
+
+# ---------------------------------------------------------------------------
+# 7.4 Mutation updateIssue with sortOrder and state together
+# ---------------------------------------------------------------------------
+
+class TestMutationUpdateIssueSortOrderAndState:
+    async def test_update_sort_order_and_state_together(self, gql_client: AsyncClient, db):
+        """Given an issue exists,
+        when sending an updateIssue mutation with both state and sortOrder,
+        then both fields are updated in the response."""
+        # Given
+        proj_repo = ProjectRepository(db)
+        project = await proj_repo.create(name="Wedge", prefix="WDG")
+        issue_repo = IssueRepository(db)
+        issue = await issue_repo.create(
+            project_id=project.id, title="To update both", creator="alice@test.com"
+        )
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    mutation($id: String!, $state: String, $sortOrder: Float) {
+                        updateIssue(identifier: $id, state: $state, sortOrder: $sortOrder) {
+                            identifier state sortOrder
+                        }
+                    }
+                """,
+                "variables": {
+                    "id": issue.identifier,
+                    "state": "In Progress",
+                    "sortOrder": 0.5,
+                },
+            },
+            headers={"X-User": "editor@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        updated = data["data"]["updateIssue"]
+        assert updated["state"] == "In Progress"
+        assert updated["sortOrder"] == 0.5

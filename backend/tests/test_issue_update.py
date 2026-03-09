@@ -292,3 +292,136 @@ class TestUpdatedAtRefreshed:
 
         # Then
         assert updated.updated_at >= updated.created_at
+
+
+# ===========================================================================
+# Sort Order Update — New Feature Tests
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# 4.1 Update sort_order persists new value
+# ---------------------------------------------------------------------------
+
+class TestUpdateSortOrder:
+    async def test_update_sort_order_persists(
+        self, issue_repo: IssueRepository, sample_issue: Issue
+    ):
+        """Given an existing issue with default sort_order,
+        when updating sort_order to 1.5,
+        then the returned issue has sort_order == 1.5."""
+        # When
+        updated = await issue_repo.update(
+            identifier=sample_issue.identifier,
+            actor="editor@test.com",
+            sort_order=1.5,
+        )
+
+        # Then
+        assert updated.sort_order == 1.5
+
+
+# ---------------------------------------------------------------------------
+# 4.2 Update sort_order creates a history entry
+# ---------------------------------------------------------------------------
+
+class TestUpdateSortOrderHistory:
+    async def test_update_sort_order_creates_history_entry(
+        self, issue_repo: IssueRepository, sample_issue: Issue
+    ):
+        """Given an existing issue with default sort_order,
+        when updating sort_order to 2.5,
+        then a HistoryEntry with field='sort_order' is appended."""
+        # When
+        updated = await issue_repo.update(
+            identifier=sample_issue.identifier,
+            actor="editor@test.com",
+            sort_order=2.5,
+        )
+
+        # Then
+        entry = next(h for h in updated.history if h.field == "sort_order")
+        assert entry.to_value == "2.5"
+        assert entry.actor == "editor@test.com"
+        assert entry.timestamp is not None
+
+
+# ---------------------------------------------------------------------------
+# 4.3 Update sort_order to same value does not create history entry
+# ---------------------------------------------------------------------------
+
+class TestUpdateSortOrderNoChange:
+    async def test_same_sort_order_no_history_entry(
+        self, issue_repo: IssueRepository, sample_project
+    ):
+        """Given an issue with sort_order=3.0,
+        when updating sort_order to 3.0,
+        then no history entry for sort_order is created."""
+        # Given
+        issue = await issue_repo.create(
+            project_id=sample_project.id,
+            title="Sort order no change",
+            creator="alice@test.com",
+            sort_order=3.0,
+        )
+
+        # When
+        updated = await issue_repo.update(
+            identifier=issue.identifier,
+            actor="editor@test.com",
+            sort_order=3.0,
+        )
+
+        # Then
+        sort_order_entries = [h for h in updated.history if h.field == "sort_order"]
+        assert len(sort_order_entries) == 0
+
+
+# ---------------------------------------------------------------------------
+# 4.4 Update sort_order along with other fields
+# ---------------------------------------------------------------------------
+
+class TestUpdateSortOrderWithOtherFields:
+    async def test_update_sort_order_and_state(
+        self, issue_repo: IssueRepository, sample_issue: Issue
+    ):
+        """Given an existing issue,
+        when updating both state and sort_order,
+        then both fields are updated and two history entries are created."""
+        # When
+        updated = await issue_repo.update(
+            identifier=sample_issue.identifier,
+            actor="editor@test.com",
+            state="In Progress",
+            sort_order=1.5,
+        )
+
+        # Then
+        assert updated.state == IssueState.IN_PROGRESS
+        assert updated.sort_order == 1.5
+        history_fields = [h.field for h in updated.history]
+        assert "state" in history_fields
+        assert "sort_order" in history_fields
+        assert len(updated.history) >= 2
+
+
+# ---------------------------------------------------------------------------
+# 4.5 Update sort_order refreshes updatedAt
+# ---------------------------------------------------------------------------
+
+class TestUpdateSortOrderRefreshesUpdatedAt:
+    async def test_updated_at_refreshes_on_sort_order_change(
+        self, issue_repo: IssueRepository, sample_issue: Issue
+    ):
+        """Given an existing issue,
+        when updating only sort_order,
+        then updatedAt is more recent than createdAt."""
+        # When
+        updated = await issue_repo.update(
+            identifier=sample_issue.identifier,
+            actor="editor@test.com",
+            sort_order=9.9,
+        )
+
+        # Then
+        assert updated.updated_at >= updated.created_at

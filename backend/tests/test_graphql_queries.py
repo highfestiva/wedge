@@ -232,3 +232,144 @@ class TestQueryIssuesPagination:
         )
         d2 = r2.json()["data"]["issues"]
         assert len(d2["items"]) == 1
+
+
+# ===========================================================================
+# Sort Order — New Feature Tests
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# 6.1 Query `issue` returns sort_order field
+# ---------------------------------------------------------------------------
+
+class TestQueryIssueSortOrder:
+    async def test_issue_query_returns_sort_order(self, gql_client: AsyncClient, db):
+        """Given an issue exists with a specific sort_order,
+        when sending an issue query requesting sortOrder,
+        then the response contains the correct sortOrder value."""
+        # Given
+        proj_repo = ProjectRepository(db)
+        project = await proj_repo.create(name="Wedge", prefix="WDG")
+        issue_repo = IssueRepository(db)
+        issue = await issue_repo.create(
+            project_id=project.id, title="Sorted issue", creator="alice@test.com",
+            sort_order=3.5,
+        )
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    query($id: String!) {
+                        issue(identifier: $id) {
+                            identifier
+                            sortOrder
+                        }
+                    }
+                """,
+                "variables": {"id": issue.identifier},
+            },
+            headers={"X-User": "admin@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        assert data["data"]["issue"]["sortOrder"] == 3.5
+
+
+# ---------------------------------------------------------------------------
+# 6.2 Query `issues` returns sort_order on each item
+# ---------------------------------------------------------------------------
+
+class TestQueryIssuesSortOrderField:
+    async def test_issues_query_returns_sort_order_per_item(self, gql_client: AsyncClient, db):
+        """Given multiple issues with different sort_order values,
+        when sending an issues query requesting sortOrder,
+        then each item has the expected sortOrder value."""
+        # Given
+        proj_repo = ProjectRepository(db)
+        project = await proj_repo.create(name="Wedge", prefix="WDG")
+        issue_repo = IssueRepository(db)
+        await issue_repo.create(
+            project_id=project.id, title="A", creator="alice@test.com", sort_order=2.0,
+        )
+        await issue_repo.create(
+            project_id=project.id, title="B", creator="alice@test.com", sort_order=5.0,
+        )
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    query($pid: String!) {
+                        issues(projectId: $pid) {
+                            items { identifier sortOrder }
+                        }
+                    }
+                """,
+                "variables": {"pid": project.id},
+            },
+            headers={"X-User": "admin@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        items = data["data"]["issues"]["items"]
+        sort_orders = [item["sortOrder"] for item in items]
+        assert 2.0 in sort_orders
+        assert 5.0 in sort_orders
+
+
+# ---------------------------------------------------------------------------
+# 6.3 Query `issues` returns items ordered by sort_order ascending
+# ---------------------------------------------------------------------------
+
+class TestQueryIssuesSortOrderOrdering:
+    async def test_issues_returned_in_sort_order(self, gql_client: AsyncClient, db):
+        """Given three issues with sort_order 3.0, 1.0, 2.0,
+        when sending an issues query,
+        then items are returned in order 1.0, 2.0, 3.0."""
+        # Given
+        proj_repo = ProjectRepository(db)
+        project = await proj_repo.create(name="Wedge", prefix="WDG")
+        issue_repo = IssueRepository(db)
+        await issue_repo.create(
+            project_id=project.id, title="Third", creator="a@test.com", sort_order=3.0,
+        )
+        await issue_repo.create(
+            project_id=project.id, title="First", creator="a@test.com", sort_order=1.0,
+        )
+        await issue_repo.create(
+            project_id=project.id, title="Second", creator="a@test.com", sort_order=2.0,
+        )
+
+        # When
+        response = await gql_client.post(
+            "/graphql",
+            json={
+                "query": """
+                    query($pid: String!) {
+                        issues(projectId: $pid) {
+                            items { title sortOrder }
+                        }
+                    }
+                """,
+                "variables": {"pid": project.id},
+            },
+            headers={"X-User": "admin@test.com"},
+        )
+
+        # Then
+        assert response.status_code == 200
+        data = response.json()
+        assert "errors" not in data
+        items = data["data"]["issues"]["items"]
+        sort_orders = [item["sortOrder"] for item in items]
+        assert sort_orders == [1.0, 2.0, 3.0]

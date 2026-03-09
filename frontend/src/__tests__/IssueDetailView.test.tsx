@@ -29,6 +29,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
       { id: "h1", actor: "alice@test.com", field: "state", fromValue: "Backlog", toValue: "In Progress", timestamp: "2026-01-01T09:00:00Z" },
       { id: "h2", actor: "bob@test.com", field: "assignee", fromValue: null, toValue: "bob@test.com", timestamp: "2026-01-01T09:30:00Z" },
     ],
+    sortOrder: 0,
     createdAt: "2026-01-01T00:00:00Z",
     updatedAt: "2026-01-01T12:00:00Z",
     ...overrides,

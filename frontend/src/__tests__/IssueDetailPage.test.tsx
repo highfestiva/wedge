@@ -49,6 +49,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
       { id: "c1", author: "alice", body: "First comment", createdAt: "2025-01-01" },
     ],
     history: [],
+    sortOrder: 0,
     createdAt: "2025-01-01",
     updatedAt: "2025-01-02",
     ...overrides,

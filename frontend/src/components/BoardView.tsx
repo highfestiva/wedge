@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import type { Issue, IssueState } from "../types";
 import { ISSUE_STATES } from "../types";
 import { IssueCard } from "./IssueCard";
@@ -10,13 +10,44 @@ export interface BoardViewProps {
   loading?: boolean;
   /** Error message, if any. */
   error?: string | null;
-  /** Called when a card is dropped into a new column. */
-  onMoveIssue?: (identifier: string, newState: IssueState) => void;
+  /** Called when a card is dropped into a new column (with optional target position). */
+  onMoveIssue?: (identifier: string, newState: IssueState, targetIndex?: number) => void;
   /** Called when the "Create Issue" button is clicked. */
   onCreateIssue?: () => void;
   /** Called when an issue card is clicked. */
   onIssueClick?: (identifier: string) => void;
 }
+
+/** Drop zone rendered between issue cards for positional drag-and-drop. */
+const DropZone: React.FC<{
+  state: IssueState;
+  index: number;
+  onDrop: (identifier: string, state: IssueState, index: number) => void;
+}> = ({ state, index, onDrop }) => {
+  const [active, setActive] = useState(false);
+
+  return (
+    <div
+      data-testid={`drop-zone-${state}-${index}`}
+      data-drop-active={active ? "true" : undefined}
+      className={`h-1 transition-all ${active ? "h-2 bg-blue-400 rounded" : ""}`}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(true);
+      }}
+      onDragLeave={() => setActive(false)}
+      onDrop={(e) => {
+        e.stopPropagation();
+        const id = e.dataTransfer.getData("text/plain");
+        if (id) {
+          setActive(false);
+          onDrop(id, state, index);
+        }
+      }}
+    />
+  );
+};
 
 export const BoardView: React.FC<BoardViewProps> = ({
   issues = [],
@@ -26,6 +57,13 @@ export const BoardView: React.FC<BoardViewProps> = ({
   onCreateIssue,
   onIssueClick,
 }) => {
+  const handleDropZone = useCallback(
+    (identifier: string, state: IssueState, index: number) => {
+      onMoveIssue?.(identifier, state, index);
+    },
+    [onMoveIssue],
+  );
+
   if (loading) {
     return (
       <div data-testid="loading-spinner" className="flex items-center justify-center py-24">
@@ -51,7 +89,9 @@ export const BoardView: React.FC<BoardViewProps> = ({
   }
 
   const issuesByState = (state: IssueState) =>
-    issues.filter((i) => i.state === state);
+    issues
+      .filter((i) => i.state === state)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
     <div data-testid="board" className="space-y-4">
@@ -73,7 +113,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 const id = e.dataTransfer.getData("text/plain");
-                if (id) onMoveIssue?.(id, state);
+                if (id) onMoveIssue?.(id, state, columnIssues.length);
               }}
             >
               <div className="board-column-header">
@@ -85,19 +125,22 @@ export const BoardView: React.FC<BoardViewProps> = ({
                 </span>
               </div>
               <div className="board-column-body">
-                {columnIssues.map((issue) => (
-                  <div
-                    key={issue.identifier}
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("text/plain", issue.identifier)
-                    }
-                  >
-                    <IssueCard
-                      issue={issue}
-                      onClick={() => onIssueClick?.(issue.identifier)}
-                    />
-                  </div>
+                <DropZone state={state} index={0} onDrop={handleDropZone} />
+                {columnIssues.map((issue, i) => (
+                  <React.Fragment key={issue.identifier}>
+                    <div
+                      draggable
+                      onDragStart={(e) =>
+                        e.dataTransfer.setData("text/plain", issue.identifier)
+                      }
+                    >
+                      <IssueCard
+                        issue={issue}
+                        onClick={() => onIssueClick?.(issue.identifier)}
+                      />
+                    </div>
+                    <DropZone state={state} index={i + 1} onDrop={handleDropZone} />
+                  </React.Fragment>
                 ))}
               </div>
             </div>

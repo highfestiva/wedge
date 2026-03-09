@@ -23,13 +23,13 @@ class PaginatedResult:
         self.cursor = cursor
 
 
-def _encode_cursor(issue_id: str) -> str:
-    return base64.b64encode(json.dumps({"id": issue_id}).encode()).decode()
+def _encode_cursor(issue_id: str, sort_order: float = 0.0) -> str:
+    return base64.b64encode(json.dumps({"id": issue_id, "so": sort_order}).encode()).decode()
 
 
-def _decode_cursor(cursor: str) -> str:
+def _decode_cursor(cursor: str) -> tuple[str, float]:
     data = json.loads(base64.b64decode(cursor))
-    return data["id"]
+    return data["id"], data.get("so", 0.0)
 
 
 def _validate_state(state: str) -> IssueState:
@@ -46,6 +46,20 @@ def _validate_priority(priority: str) -> Priority:
         if p.value == priority:
             return p
     raise ValidationError(f"Invalid priority: '{priority}'")
+
+
+_PRIORITY_SORT_ORDER = {
+    Priority.URGENT: 0.0,
+    Priority.HIGH: 1.0,
+    Priority.MEDIUM: 2.0,
+    Priority.LOW: 3.0,
+    Priority.NONE: 4.0,
+}
+
+
+def _priority_sort_order(priority: Priority) -> float:
+    """Return the default sort_order for a given priority."""
+    return _PRIORITY_SORT_ORDER[priority]
 
 
 class IssueRepository:
@@ -92,6 +106,7 @@ class IssueRepository:
             labels=doc.get("labels", []),
             comments=[self._comment_from_doc(c) for c in doc.get("comments", [])],
             history=[self._history_from_doc(h) for h in doc.get("history", [])],
+            sort_order=doc.get("sort_order", 0.0),
         )
 
     async def create(
@@ -104,6 +119,7 @@ class IssueRepository:
         priority: Optional[str] = None,
         labels: Optional[list[str]] = None,
         assignee: Optional[str] = None,
+        sort_order: Optional[float] = None,
     ) -> Issue:
         """Create a new issue.  Auto-generates identifier from project prefix + counter."""
         # Validate project exists
@@ -121,6 +137,12 @@ class IssueRepository:
         issue_priority = Priority.NONE
         if priority is not None:
             issue_priority = _validate_priority(priority)
+
+        # Compute sort_order: use explicit value or derive from priority
+        if sort_order is not None:
+            effective_sort_order = sort_order
+        else:
+            effective_sort_order = _priority_sort_order(issue_priority)
 
         # Atomically get the next counter
         counter = await self._project_repo.increment_counter(project_id)
@@ -142,6 +164,7 @@ class IssueRepository:
             "labels": labels or [],
             "comments": [],
             "history": [],
+            "sort_order": effective_sort_order,
         }
         result = await self._collection.insert_one(doc)
         doc["_id"] = result.inserted_id
@@ -173,10 +196,13 @@ class IssueRepository:
             query["labels"] = label
 
         if after is not None:
-            after_id = _decode_cursor(after)
-            query["_id"] = {"$gt": ObjectId(after_id)}
+            after_id, after_so = _decode_cursor(after)
+            query["$or"] = [
+                {"sort_order": {"$gt": after_so}},
+                {"sort_order": after_so, "_id": {"$gt": ObjectId(after_id)}},
+            ]
 
-        cursor = self._collection.find(query).sort("_id", 1)
+        cursor = self._collection.find(query).sort([("sort_order", 1), ("_id", 1)])
         if first is not None:
             cursor = cursor.limit(first + 1)
 
@@ -191,7 +217,7 @@ class IssueRepository:
 
         next_cursor = None
         if has_next and docs:
-            next_cursor = _encode_cursor(str(docs[-1]["_id"]))
+            next_cursor = _encode_cursor(str(docs[-1]["_id"]), docs[-1].get("sort_order", 0.0))
 
         return PaginatedResult(items=items, cursor=next_cursor)
 
@@ -205,6 +231,7 @@ class IssueRepository:
         priority: Optional[str] = None,
         labels: Optional[list[str]] = None,
         assignee: Optional[str] = None,
+        sort_order: Optional[float] = None,
     ) -> Issue:
         """Update an issue.  Creates HistoryEntry for each changed field.  Raises NotFoundError."""
         # Validate before fetching to fail fast
@@ -225,6 +252,17 @@ class IssueRepository:
             "priority": (priority, issue.priority.value),
             "assignee": (assignee, issue.assignee),
         }
+
+        if sort_order is not None and sort_order != issue.sort_order:
+            updates["sort_order"] = sort_order
+            history_entries.append({
+                "id": str(ObjectId()),
+                "actor": actor,
+                "field": "sort_order",
+                "from_value": str(issue.sort_order),
+                "to_value": str(sort_order),
+                "timestamp": now,
+            })
 
         for field_name, (new_val, old_val) in field_map.items():
             if new_val is not None and new_val != old_val:

@@ -80,7 +80,7 @@ class TestDefaultProjectSeeded:
     async def test_seed_creates_default_project(self, raw_db):
         """Given a freshly initialized database,
         when running seed_default_project,
-        then a project with name 'Wedge' and prefix 'WDG' exists."""
+        then a project with name 'Default' and prefix 'DFT' exists."""
         # Given
         await init_collections(raw_db)
 
@@ -90,4 +90,4 @@ class TestDefaultProjectSeeded:
         # Then
         repo = ProjectRepository(raw_db)
         projects = await repo.list_all()
-        assert any(p.name == "Wedge" and p.prefix == "WDG" for p in projects)
+        assert any(p.name == "Default" and p.prefix == "DFT" for p in projects)

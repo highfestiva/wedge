@@ -71,6 +71,7 @@ export const ISSUES_QUERY = `
         priority
         assignee
         labels
+        sortOrder
       }
       cursor
     }

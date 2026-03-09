@@ -73,6 +73,7 @@ class IssueType:
     url: str
     created_at: datetime
     updated_at: datetime
+    sort_order: float = 0.0
     description: Optional[str] = None
     assignee: Optional[str] = None
     labels: list[str] = strawberry.field(default_factory=list)
@@ -115,6 +116,7 @@ def _issue_to_type(i) -> IssueType:
         state=i.state.value, priority=i.priority.value,
         creator=i.creator, project=i.project, url=i.url,
         created_at=i.created_at, updated_at=i.updated_at,
+        sort_order=i.sort_order,
         description=i.description, assignee=i.assignee,
         labels=i.labels,
         comments=[_comment_to_type(c) for c in i.comments],
@@ -200,6 +202,7 @@ class Mutation:
         priority: Optional[str] = None,
         labels: Optional[list[str]] = None,
         assignee: Optional[str] = None,
+        sort_order: Optional[float] = None,
     ) -> IssueType:
         user = _require_user(info)
         repo = IssueRepository(_get_db(info))
@@ -207,7 +210,7 @@ class Mutation:
             issue = await repo.create(
                 project_id=project_id, title=title, creator=user,
                 description=description, state=state, priority=priority,
-                labels=labels, assignee=assignee,
+                labels=labels, assignee=assignee, sort_order=sort_order,
             )
         except (NotFoundError, ValidationError) as e:
             raise ValueError(str(e))
@@ -224,6 +227,7 @@ class Mutation:
         priority: Optional[str] = None,
         labels: Optional[list[str]] = None,
         assignee: Optional[str] = None,
+        sort_order: Optional[float] = None,
     ) -> IssueType:
         user = _require_user(info)
         repo = IssueRepository(_get_db(info))
@@ -232,6 +236,7 @@ class Mutation:
                 identifier=identifier, actor=user,
                 title=title, description=description, state=state,
                 priority=priority, labels=labels, assignee=assignee,
+                sort_order=sort_order,
             )
         except (NotFoundError, ValidationError) as e:
             raise ValueError(str(e))

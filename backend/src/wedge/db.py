@@ -49,7 +49,7 @@ async def init_collections(db: AsyncIOMotorDatabase) -> None:
 
 
 async def seed_default_project(db: AsyncIOMotorDatabase) -> None:
-    """Insert the default 'Wedge' project if it doesn't already exist. Only for tests"""
+    """Insert the default 'Default' project if it doesn't already exist. Only for tests"""
     from wedge.repository.project_repository import ProjectRepository
 
     repo = ProjectRepository(db)

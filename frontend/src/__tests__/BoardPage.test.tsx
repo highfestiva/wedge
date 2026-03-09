@@ -55,6 +55,7 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
     url: "/DEF-1",
     comments: [],
     history: [],
+    sortOrder: 0,
     createdAt: "2025-01-01",
     updatedAt: "2025-01-02",
     ...overrides,
@@ -430,10 +431,12 @@ describe("BoardPage — Optimistic Drag-and-Drop (Part 1)", () => {
     simulateDragDrop("issue-card-DEF-1", "column-In Progress");
 
     // Then the mutation is called with the correct arguments
-    expect(mockMutationExecute).toHaveBeenCalledWith({
-      identifier: "DEF-1",
-      state: "In Progress",
-    });
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-1",
+        state: "In Progress",
+      })
+    );
   });
 });
 
@@ -690,5 +693,395 @@ describe("BoardPage — Unknown Identifier Guard (Part 6)", () => {
     expect(mockMutationExecute).not.toHaveBeenCalled();
     const backlogColumn = screen.getByTestId("column-Backlog");
     expect(within(backlogColumn).getByText("Existing card")).toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Drop-on-drop-zone helper
+// ---------------------------------------------------------------------------
+/**
+ * Simulates a native HTML drag-and-drop from a draggable card to a specific drop zone.
+ */
+function simulateDropOnDropZone(cardTestId: string, dropZoneTestId: string) {
+  const card = screen.getByTestId(cardTestId).closest("[draggable]")!;
+  const dropZone = screen.getByTestId(dropZoneTestId);
+  const dataTransferData: Record<string, string> = {};
+  const dataTransfer = {
+    setData: (k: string, v: string) => { dataTransferData[k] = v; },
+    getData: (k: string) => dataTransferData[k] ?? "",
+  };
+  fireEvent.dragStart(card, { dataTransfer });
+  fireEvent.drop(dropZone, { dataTransfer });
+}
+
+// ===========================================================================
+// Sort Order Part 3 — Sort Order Computation in BoardPage
+// ===========================================================================
+describe("BoardPage — Sort Order Computation (Sort Order Part 3)", () => {
+  // -----------------------------------------------------------------------
+  // Test 3.1 — Dropping into an empty column assigns sortOrder = 0.0
+  // -----------------------------------------------------------------------
+  it("SO-3.1 — dropping into an empty column assigns sortOrder = 0.0", () => {
+    // Given BoardPage with one issue in "Backlog" and no issues in "Done"
+    const issue = makeIssue({ identifier: "DEF-1", state: "Backlog", sortOrder: 2.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issue], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the issue is dragged from "Backlog" and dropped into "Done" at index 0
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Done-0");
+
+    // Then the mutation is called with sortOrder: 0.0 (in addition to state: "Done")
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-1",
+        state: "Done",
+        sortOrder: 0.0,
+      })
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 3.2 — Dropping before the first item computes sortOrder = firstItem.sortOrder - 1.0
+  // -----------------------------------------------------------------------
+  it("SO-3.2 — dropping before the first item computes sortOrder = firstItem.sortOrder - 1.0", () => {
+    // Given BoardPage with two issues in "Todo" with sortOrder 2.0 and 4.0, and one in "Backlog"
+    const todoA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 2.0 });
+    const todoB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 4.0 });
+    const backlog = makeIssue({ identifier: "DEF-1", id: "1", state: "Backlog", sortOrder: 1.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [todoA, todoB, backlog], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the "Backlog" issue is dropped at index 0 in "Todo" (before the first card)
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Todo-0");
+
+    // Then the mutation is called with sortOrder: 1.0 (i.e., 2.0 - 1.0)
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-1",
+        state: "Todo",
+        sortOrder: 1.0,
+      })
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 3.3 — Dropping after the last item computes sortOrder = lastItem.sortOrder + 1.0
+  // -----------------------------------------------------------------------
+  it("SO-3.3 — dropping after the last item computes sortOrder = lastItem.sortOrder + 1.0", () => {
+    // Given BoardPage with two issues in "Todo" with sortOrder 2.0 and 4.0, and one in "Backlog"
+    const todoA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 2.0 });
+    const todoB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 4.0 });
+    const backlog = makeIssue({ identifier: "DEF-1", id: "1", state: "Backlog", sortOrder: 1.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [todoA, todoB, backlog], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the "Backlog" issue is dropped at index 2 in "Todo" (after the last card)
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Todo-2");
+
+    // Then the mutation is called with sortOrder: 5.0 (i.e., 4.0 + 1.0)
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-1",
+        state: "Todo",
+        sortOrder: 5.0,
+      })
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 3.4 — Dropping between two items computes sortOrder as midpoint
+  // -----------------------------------------------------------------------
+  it("SO-3.4 — dropping between two items computes sortOrder as midpoint", () => {
+    // Given BoardPage with three issues in "Todo" with sortOrder 1.0, 3.0, 5.0, and one in "Backlog"
+    const todoA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 1.0 });
+    const todoB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 3.0 });
+    const todoC = makeIssue({ identifier: "DEF-C", id: "c", state: "Todo", sortOrder: 5.0 });
+    const backlog = makeIssue({ identifier: "DEF-1", id: "1", state: "Backlog", sortOrder: 1.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [todoA, todoB, todoC, backlog], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the "Backlog" issue is dropped at index 1 in "Todo" (between sortOrder=1.0 and sortOrder=3.0)
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Todo-1");
+
+    // Then the mutation is called with sortOrder: 2.0 (i.e., (1.0 + 3.0) / 2)
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-1",
+        state: "Todo",
+        sortOrder: 2.0,
+      })
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 3.5 — Reordering within the same column: dragged issue excluded from midpoint
+  // -----------------------------------------------------------------------
+  it("SO-3.5 — reordering within same column: dragged issue is excluded from midpoint calculation", () => {
+    // Given BoardPage with three issues in "Todo" with sortOrder 1.0 (A), 3.0 (B), 5.0 (C)
+    const issueA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 1.0 });
+    const issueB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 3.0 });
+    const issueC = makeIssue({ identifier: "DEF-C", id: "c", state: "Todo", sortOrder: 5.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issueA, issueB, issueC], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When issue A is dragged and dropped at index 2 (between B and C, after excluding A)
+    simulateDropOnDropZone("issue-card-DEF-A", "drop-zone-Todo-2");
+
+    // Then mutation is called with sortOrder: 4.0 (i.e., (3.0 + 5.0) / 2) and state is NOT included
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-A",
+        sortOrder: 4.0,
+      })
+    );
+    // state should not be included since the column didn't change
+    expect(mockMutationExecute.mock.calls[0][0]).not.toHaveProperty("state");
+  });
+});
+
+// ===========================================================================
+// Sort Order Part 4 — Optimistic Update with Sort Order
+// ===========================================================================
+describe("BoardPage — Optimistic Update with Sort Order (Sort Order Part 4)", () => {
+  // -----------------------------------------------------------------------
+  // Test 4.1 — Issue immediately appears at correct position after drop
+  // -----------------------------------------------------------------------
+  it("SO-4.1 — issue immediately appears at correct position in target column after drop", () => {
+    // Given BoardPage with issues in "Todo" having sortOrder 1.0 and 5.0, and one in "Backlog"
+    const todoA = makeIssue({ identifier: "DEF-A", id: "a", title: "Todo First", state: "Todo", sortOrder: 1.0 });
+    const todoB = makeIssue({ identifier: "DEF-B", id: "b", title: "Todo Last", state: "Todo", sortOrder: 5.0 });
+    const backlog = makeIssue({ identifier: "DEF-1", id: "1", title: "Moving Card", state: "Backlog", sortOrder: 2.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [todoA, todoB, backlog], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the "Backlog" issue is dropped between the two "Todo" issues (midpoint 3.0)
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Todo-1");
+
+    // Then the issue immediately appears between the two "Todo" issues
+    const todoColumn = screen.getByTestId("column-Todo");
+    const cards = within(todoColumn).getAllByTestId(/^issue-card-/);
+    expect(cards[0]).toHaveAttribute("data-testid", "issue-card-DEF-A"); // sortOrder 1.0
+    expect(cards[1]).toHaveAttribute("data-testid", "issue-card-DEF-1"); // sortOrder 3.0 (midpoint)
+    expect(cards[2]).toHaveAttribute("data-testid", "issue-card-DEF-B"); // sortOrder 5.0
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 4.2 — Sort order is updated in local state immediately (optimistic)
+  // -----------------------------------------------------------------------
+  it("SO-4.2 — sort order is updated in local state immediately (optimistic)", () => {
+    // Given BoardPage with one issue in "Backlog" (sortOrder=4.0)
+    const issue = makeIssue({ identifier: "DEF-1", state: "Backlog", sortOrder: 4.0, title: "Optimistic issue" });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issue], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the issue is dropped into "Todo" at index 0 (empty column, sortOrder=0.0)
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Todo-0");
+
+    // Then the issue appears in "Todo" immediately
+    const todoColumn = screen.getByTestId("column-Todo");
+    expect(within(todoColumn).getByText("Optimistic issue")).toBeInTheDocument();
+    // And is no longer in Backlog
+    const backlogColumn = screen.getByTestId("column-Backlog");
+    expect(within(backlogColumn).queryByText("Optimistic issue")).toBeNull();
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 4.3 — Revert on failure restores both state and sortOrder
+  // -----------------------------------------------------------------------
+  it("SO-4.3 — revert on failure restores both state and sortOrder", async () => {
+    // Given BoardPage with one issue in "Backlog" (sortOrder=2.0) and mutation will fail
+    const issue = makeIssue({ identifier: "DEF-1", state: "Backlog", sortOrder: 2.0, title: "Revert sort" });
+    mockMutationExecute.mockResolvedValue({ data: undefined, error: { message: "Server error" } });
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issue], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the issue is dragged to "Done" at index 0
+    await act(async () => {
+      simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Done-0");
+    });
+
+    // Then after the mutation rejects, the issue reverts to "Backlog" with sortOrder=2.0
+    await waitFor(() => {
+      const backlogColumn = screen.getByTestId("column-Backlog");
+      expect(within(backlogColumn).getByText("Revert sort")).toBeInTheDocument();
+    });
+    const doneColumn = screen.getByTestId("column-Done");
+    expect(within(doneColumn).queryByText("Revert sort")).toBeNull();
+  });
+});
+
+// ===========================================================================
+// Sort Order Part 5 — Same-Position Drop (No-Op) Within a Column
+// ===========================================================================
+describe("BoardPage — Same-Position Drop No-Op (Sort Order Part 5)", () => {
+  // -----------------------------------------------------------------------
+  // Test 5.1 — Dropping issue at its current position does not fire mutation
+  // -----------------------------------------------------------------------
+  it("SO-5.1 — dropping an issue at its current position in the same column does not fire mutation", () => {
+    // Given BoardPage with three issues in "Todo" with sortOrder 1.0, 3.0, 5.0
+    const issueA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 1.0, title: "Issue A" });
+    const issueB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 3.0, title: "Issue B" });
+    const issueC = makeIssue({ identifier: "DEF-C", id: "c", state: "Todo", sortOrder: 5.0, title: "Issue C" });
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issueA, issueB, issueC], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the second issue (sortOrder 3.0) is dropped at index 1 in "Todo" (its current position)
+    simulateDropOnDropZone("issue-card-DEF-B", "drop-zone-Todo-1");
+
+    // Then no mutation is fired
+    expect(mockMutationExecute).not.toHaveBeenCalled();
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 5.2 — Issue and column counts remain unchanged after same-position drop
+  // -----------------------------------------------------------------------
+  it("SO-5.2 — issue and column counts remain unchanged after same-position drop", () => {
+    // Given BoardPage with two issues in "Todo"
+    const issueA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 1.0, title: "Issue A" });
+    const issueB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 3.0, title: "Issue B" });
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issueA, issueB], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the first issue is dropped at index 0 in "Todo"
+    simulateDropOnDropZone("issue-card-DEF-A", "drop-zone-Todo-0");
+
+    // Then the issue remains in place and column count is unchanged
+    const todoColumn = screen.getByTestId("column-Todo");
+    expect(within(todoColumn).getByText("Issue A")).toBeInTheDocument();
+    expect(within(todoColumn).getByText("Issue B")).toBeInTheDocument();
+    expect(screen.getByTestId("column-header-Todo")).toHaveTextContent("(2)");
+  });
+});
+
+// ===========================================================================
+// Sort Order Part 8 — Mutation Includes sortOrder Variable
+// ===========================================================================
+describe("BoardPage — Mutation Includes sortOrder (Sort Order Part 8)", () => {
+  // -----------------------------------------------------------------------
+  // Test 8.1 — Mutation variables include sortOrder when moving between columns
+  // -----------------------------------------------------------------------
+  it("SO-8.1 — mutation variables include sortOrder when moving between columns", () => {
+    // Given BoardPage with one issue in "Backlog"
+    const issue = makeIssue({ identifier: "DEF-1", state: "Backlog", sortOrder: 2.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issue], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the issue is dropped into "Todo" at index 0
+    simulateDropOnDropZone("issue-card-DEF-1", "drop-zone-Todo-0");
+
+    // Then executeUpdateMutation is called with variables including sortOrder (a number)
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-1",
+        state: "Todo",
+        sortOrder: expect.any(Number),
+      })
+    );
+  });
+
+  // -----------------------------------------------------------------------
+  // Test 8.2 — Mutation variables include sortOrder but not state when reordering within same column
+  // -----------------------------------------------------------------------
+  it("SO-8.2 — mutation variables include sortOrder but not state when reordering within same column", () => {
+    // Given BoardPage with three issues in "Todo"
+    const issueA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 1.0 });
+    const issueB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 3.0 });
+    const issueC = makeIssue({ identifier: "DEF-C", id: "c", state: "Todo", sortOrder: 5.0 });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issueA, issueB, issueC], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When the first issue is dragged to a new position within "Todo"
+    simulateDropOnDropZone("issue-card-DEF-A", "drop-zone-Todo-2");
+
+    // Then executeUpdateMutation is called with identifier and sortOrder but WITHOUT state
+    expect(mockMutationExecute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        identifier: "DEF-A",
+        sortOrder: expect.any(Number),
+      })
+    );
+    expect(mockMutationExecute.mock.calls[0][0]).not.toHaveProperty("state");
+  });
+});
+
+// ===========================================================================
+// Sort Order Part 9 — Concurrent Reorder Operations
+// ===========================================================================
+describe("BoardPage — Concurrent Reorder Operations (Sort Order Part 9)", () => {
+  // -----------------------------------------------------------------------
+  // Test 9.1 — Multiple within-column reorders work concurrently
+  // -----------------------------------------------------------------------
+  it("SO-9.1 — multiple within-column reorders of different issues work concurrently", () => {
+    // Given BoardPage with four issues in "Todo" and mutations return pending promises
+    const issueA = makeIssue({ identifier: "DEF-A", id: "a", state: "Todo", sortOrder: 1.0, title: "Issue A" });
+    const issueB = makeIssue({ identifier: "DEF-B", id: "b", state: "Todo", sortOrder: 3.0, title: "Issue B" });
+    const issueC = makeIssue({ identifier: "DEF-C", id: "c", state: "Todo", sortOrder: 5.0, title: "Issue C" });
+    const issueD = makeIssue({ identifier: "DEF-D", id: "d", state: "Todo", sortOrder: 7.0, title: "Issue D" });
+    mockMutationExecute.mockReturnValue(new Promise(() => {}));
+    mockIssuesResult = {
+      fetching: false,
+      data: { issues: { items: [issueA, issueB, issueC, issueD], cursor: null } },
+    };
+    renderBoardPage();
+
+    // When issue A is reordered (moved to between C and D) before any mutation resolves
+    simulateDropOnDropZone("issue-card-DEF-A", "drop-zone-Todo-3");
+
+    // And issue B is reordered (moved to the end) before any mutation resolves
+    simulateDropOnDropZone("issue-card-DEF-B", "drop-zone-Todo-3");
+
+    // Then both issues appear at their new positions in the column (optimistic updates coexist)
+    const todoColumn = screen.getByTestId("column-Todo");
+    expect(within(todoColumn).getByText("Issue A")).toBeInTheDocument();
+    expect(within(todoColumn).getByText("Issue B")).toBeInTheDocument();
+    expect(within(todoColumn).getByText("Issue C")).toBeInTheDocument();
+    expect(within(todoColumn).getByText("Issue D")).toBeInTheDocument();
+    // Mutation should have been called twice
+    expect(mockMutationExecute).toHaveBeenCalledTimes(2);
   });
 });

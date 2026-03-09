@@ -46,31 +46,85 @@ export const BoardPage: React.FC = () => {
     log.info(`loaded ${data.issues.items.length} issues`);
   }
 
-  const handleMoveIssue = (identifier: string, newState: IssueState) => {
+  const handleMoveIssue = (identifier: string, newState: IssueState, targetIndex?: number) => {
     const issue = localIssues.find((i) => i.identifier === identifier);
     if (!issue) {
       log.info(`moveIssue: unknown identifier ${identifier}, ignoring`);
       return;
     }
-    if (issue.state === newState) {
-      return;
+
+    const sameColumn = issue.state === newState;
+    const rawIdx = targetIndex;
+
+    // Detect same-position no-op for within-column reorder
+    if (sameColumn && rawIdx !== undefined) {
+      const fullColumnSorted = localIssues
+        .filter((i) => i.state === newState)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      const currentIndex = fullColumnSorted.findIndex((i) => i.identifier === identifier);
+      if (rawIdx === currentIndex || rawIdx === currentIndex + 1) {
+        return;
+      }
     }
 
-    log.info(`moveIssue ${identifier} -> ${newState}`);
+    // Build sorted list of issues in target column, excluding dragged issue
+    const columnIssues = localIssues
+      .filter((i) => i.state === newState && i.identifier !== identifier)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    // Adjust index: for same-column reorder, account for removal of dragged item
+    let idx: number;
+    if (rawIdx === undefined) {
+      idx = columnIssues.length;
+    } else if (sameColumn) {
+      const fullColumnSorted = localIssues
+        .filter((i) => i.state === newState)
+        .sort((a, b) => a.sortOrder - b.sortOrder);
+      const currentIndex = fullColumnSorted.findIndex((i) => i.identifier === identifier);
+      idx = currentIndex < rawIdx ? rawIdx - 1 : rawIdx;
+    } else {
+      idx = rawIdx;
+    }
+
+    // Compute new sortOrder
+    let newSortOrder: number;
+    if (columnIssues.length === 0) {
+      newSortOrder = 0.0;
+    } else if (idx === 0) {
+      newSortOrder = columnIssues[0].sortOrder - 1.0;
+    } else if (idx >= columnIssues.length) {
+      newSortOrder = columnIssues[columnIssues.length - 1].sortOrder + 1.0;
+    } else {
+      newSortOrder = (columnIssues[idx - 1].sortOrder + columnIssues[idx].sortOrder) / 2;
+    }
+
+    log.info(`moveIssue ${identifier} -> ${newState} at index ${idx}, sortOrder ${newSortOrder}`);
     const previousState = issue.state;
+    const previousSortOrder = issue.sortOrder;
 
     setLocalIssues((prev) =>
-      prev.map((i) => (i.identifier === identifier ? { ...i, state: newState } : i))
+      prev.map((i) =>
+        i.identifier === identifier
+          ? { ...i, state: newState, sortOrder: newSortOrder }
+          : i
+      )
     );
     setMoveError(null);
 
-    const result = executeUpdateMutation({ identifier, state: newState });
+    const mutationVars: Record<string, unknown> = { identifier, sortOrder: newSortOrder };
+    if (!sameColumn) {
+      mutationVars.state = newState;
+    }
+
+    const result = executeUpdateMutation(mutationVars);
     Promise.resolve(result).then(
       (res) => {
         if (res?.error) {
           setLocalIssues((prev) =>
             prev.map((i) =>
-              i.identifier === identifier ? { ...i, state: previousState } : i
+              i.identifier === identifier
+                ? { ...i, state: previousState, sortOrder: previousSortOrder }
+                : i
             )
           );
           setMoveError(res.error.message);
@@ -79,7 +133,9 @@ export const BoardPage: React.FC = () => {
       () => {
         setLocalIssues((prev) =>
           prev.map((i) =>
-            i.identifier === identifier ? { ...i, state: previousState } : i
+            i.identifier === identifier
+              ? { ...i, state: previousState, sortOrder: previousSortOrder }
+              : i
           )
         );
         setMoveError("Failed to move issue");

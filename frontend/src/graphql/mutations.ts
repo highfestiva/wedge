@@ -27,7 +27,7 @@ export const CREATE_ISSUE_MUTATION = `
       labels: $labels
       assignee: $assignee
     ) {
-      id identifier title state priority creator assignee labels
+      id identifier title state priority creator assignee labels sortOrder
     }
   }
 `;
@@ -41,6 +41,7 @@ export const UPDATE_ISSUE_MUTATION = `
     $priority: String
     $labels: [String!]
     $assignee: String
+    $sortOrder: Float
   ) {
     updateIssue(
       identifier: $identifier
@@ -50,8 +51,9 @@ export const UPDATE_ISSUE_MUTATION = `
       priority: $priority
       labels: $labels
       assignee: $assignee
+      sortOrder: $sortOrder
     ) {
-      id identifier title description state priority assignee labels
+      id identifier title description state priority assignee labels sortOrder
       history { id actor field fromValue toValue timestamp }
     }
   }

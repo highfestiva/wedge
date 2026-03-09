@@ -466,3 +466,282 @@ class TestDeleteIssueNotFound:
         then a NotFoundError is raised."""
         with pytest.raises(NotFoundError):
             await issue_repo.delete("NOPE-999")
+
+
+# ===========================================================================
+# Sort Order — New Feature Tests
+# ===========================================================================
+
+
+# ---------------------------------------------------------------------------
+# 1.1 Issue dataclass has sort_order attribute with default 0.0
+# ---------------------------------------------------------------------------
+
+class TestIssueSortOrderDefault:
+    async def test_issue_model_has_sort_order_default(self, issue_repo: IssueRepository, sample_project):
+        """Given an issue is created without explicit sort_order,
+        when inspecting the issue,
+        then sort_order attribute exists and equals 0.0."""
+        # When
+        issue = await issue_repo.create(
+            project_id=sample_project.id,
+            title="Default sort order",
+            creator="alice@test.com",
+        )
+
+        # Then
+        assert hasattr(issue, "sort_order")
+        assert issue.sort_order == 4.0  # priority NONE defaults to 4.0
+
+
+# ---------------------------------------------------------------------------
+# 2.1 Create issue without explicit sort_order assigns priority-based default
+# ---------------------------------------------------------------------------
+
+class TestCreateIssueSortOrderPriorityDefault:
+    @pytest.mark.parametrize(
+        "priority, expected_sort_order",
+        [
+            ("urgent", 0.0),
+            ("high", 1.0),
+            ("medium", 2.0),
+            ("low", 3.0),
+            ("none", 4.0),
+        ],
+    )
+    async def test_priority_based_sort_order_default(
+        self, issue_repo: IssueRepository, sample_project, priority, expected_sort_order
+    ):
+        """Given an issue is created with a specific priority and no sort_order,
+        when the issue is created,
+        then sort_order is derived from the priority."""
+        # When
+        issue = await issue_repo.create(
+            project_id=sample_project.id,
+            title=f"Issue with {priority}",
+            creator="alice@test.com",
+            priority=priority,
+        )
+
+        # Then
+        assert issue.sort_order == expected_sort_order
+
+
+# ---------------------------------------------------------------------------
+# 2.2 Create issue with explicit sort_order uses provided value
+# ---------------------------------------------------------------------------
+
+class TestCreateIssueExplicitSortOrder:
+    async def test_explicit_sort_order_used(self, issue_repo: IssueRepository, sample_project):
+        """Given a sort_order of 7.5 is provided,
+        when creating an issue,
+        then the returned issue has sort_order == 7.5."""
+        # When
+        issue = await issue_repo.create(
+            project_id=sample_project.id,
+            title="Explicit sort order",
+            creator="alice@test.com",
+            sort_order=7.5,
+        )
+
+        # Then
+        assert issue.sort_order == 7.5
+
+
+# ---------------------------------------------------------------------------
+# 2.3 Created issue sort_order is persisted in MongoDB
+# ---------------------------------------------------------------------------
+
+class TestCreateIssueSortOrderPersisted:
+    async def test_sort_order_round_trips(self, issue_repo: IssueRepository, sample_project):
+        """Given an issue is created with sort_order=3.14,
+        when fetching it back by identifier,
+        then sort_order is 3.14."""
+        # Given
+        created = await issue_repo.create(
+            project_id=sample_project.id,
+            title="Persisted sort order",
+            creator="alice@test.com",
+            sort_order=3.14,
+        )
+
+        # When
+        fetched = await issue_repo.get_by_identifier(created.identifier)
+
+        # Then
+        assert fetched.sort_order == 3.14
+
+
+# ---------------------------------------------------------------------------
+# 3.1 list_issues returns issues sorted by sort_order ascending
+# ---------------------------------------------------------------------------
+
+class TestListIssuesSortedBySortOrder:
+    async def test_list_issues_ordered_by_sort_order(
+        self, issue_repo: IssueRepository, sample_project
+    ):
+        """Given three issues with sort_order 3.0, 1.0, 2.0,
+        when listing issues,
+        then they are returned in order 1.0, 2.0, 3.0."""
+        # Given
+        await issue_repo.create(
+            project_id=sample_project.id, title="Third", creator="a@test.com", sort_order=3.0
+        )
+        await issue_repo.create(
+            project_id=sample_project.id, title="First", creator="a@test.com", sort_order=1.0
+        )
+        await issue_repo.create(
+            project_id=sample_project.id, title="Second", creator="a@test.com", sort_order=2.0
+        )
+
+        # When
+        result = await issue_repo.list_issues(project_id=sample_project.id)
+
+        # Then
+        sort_orders = [i.sort_order for i in result.items]
+        assert sort_orders == [1.0, 2.0, 3.0]
+
+
+# ---------------------------------------------------------------------------
+# 3.2 Issues with same sort_order are sub-sorted by _id (stable order)
+# ---------------------------------------------------------------------------
+
+class TestListIssuesSortOrderTieBreaker:
+    async def test_same_sort_order_stable_by_id(
+        self, issue_repo: IssueRepository, sample_project
+    ):
+        """Given two issues with identical sort_order=5.0,
+        when listing issues,
+        then both are returned in consistent _id ascending order."""
+        # Given
+        i1 = await issue_repo.create(
+            project_id=sample_project.id, title="A", creator="a@test.com", sort_order=5.0
+        )
+        i2 = await issue_repo.create(
+            project_id=sample_project.id, title="B", creator="a@test.com", sort_order=5.0
+        )
+
+        # When
+        result = await issue_repo.list_issues(project_id=sample_project.id)
+
+        # Then
+        assert len(result.items) == 2
+        ids = [i.id for i in result.items]
+        assert ids == sorted(ids)
+
+
+# ---------------------------------------------------------------------------
+# 3.3 list_issues pagination still works with sort_order-based ordering
+# ---------------------------------------------------------------------------
+
+class TestListIssuesPaginationWithSortOrder:
+    async def test_pagination_respects_sort_order(
+        self, issue_repo: IssueRepository, sample_project
+    ):
+        """Given 5 issues with sort_order 5.0, 3.0, 1.0, 4.0, 2.0,
+        when requesting first=2,
+        then the first page has sort_order 1.0, 2.0
+        and the next page has sort_order 3.0, 4.0."""
+        # Given
+        for so in [5.0, 3.0, 1.0, 4.0, 2.0]:
+            await issue_repo.create(
+                project_id=sample_project.id,
+                title=f"Issue-{so}",
+                creator="a@test.com",
+                sort_order=so,
+            )
+
+        # When — page 1
+        page1 = await issue_repo.list_issues(project_id=sample_project.id, first=2)
+
+        # Then
+        assert len(page1.items) == 2
+        assert page1.items[0].sort_order == 1.0
+        assert page1.items[1].sort_order == 2.0
+        assert page1.cursor is not None
+
+        # When — page 2
+        page2 = await issue_repo.list_issues(
+            project_id=sample_project.id, first=2, after=page1.cursor
+        )
+
+        # Then
+        assert len(page2.items) == 2
+        assert page2.items[0].sort_order == 3.0
+        assert page2.items[1].sort_order == 4.0
+
+
+# ---------------------------------------------------------------------------
+# 3.4 list_issues with filters still respects sort_order ordering
+# ---------------------------------------------------------------------------
+
+class TestListIssuesFilteredSortOrder:
+    async def test_filtered_results_sorted_by_sort_order(
+        self, issue_repo: IssueRepository, sample_project
+    ):
+        """Given issues with different states and sort orders,
+        when filtering by state,
+        then filtered results are sorted by sort_order ascending."""
+        # Given
+        await issue_repo.create(
+            project_id=sample_project.id, title="Todo-High", creator="a@test.com",
+            state="Todo", sort_order=5.0,
+        )
+        await issue_repo.create(
+            project_id=sample_project.id, title="Todo-Low", creator="a@test.com",
+            state="Todo", sort_order=1.0,
+        )
+        await issue_repo.create(
+            project_id=sample_project.id, title="Backlog", creator="a@test.com",
+            state="Backlog", sort_order=0.0,
+        )
+
+        # When
+        result = await issue_repo.list_issues(project_id=sample_project.id, state="Todo")
+
+        # Then
+        assert len(result.items) == 2
+        assert result.items[0].sort_order == 1.0
+        assert result.items[1].sort_order == 5.0
+
+
+# ---------------------------------------------------------------------------
+# 5.1 _to_model defaults sort_order to 0.0 for documents missing the field
+# ---------------------------------------------------------------------------
+
+class TestBackwardCompatibilitySortOrder:
+    async def test_missing_sort_order_field_defaults_to_zero(
+        self, issue_repo: IssueRepository, sample_project
+    ):
+        """Given a MongoDB document without a sort_order field,
+        when fetching via get_by_identifier,
+        then the Issue has sort_order == 0.0."""
+        # Given — insert a raw document without sort_order
+        from bson import ObjectId
+        from datetime import datetime, timezone
+
+        now = datetime.now(timezone.utc)
+        raw_doc = {
+            "_id": ObjectId(),
+            "identifier": "WDG-999",
+            "title": "Legacy issue",
+            "state": "Backlog",
+            "priority": "none",
+            "creator": "legacy@test.com",
+            "project": sample_project.id,
+            "url": "/issue/WDG-999",
+            "created_at": now,
+            "updated_at": now,
+            "description": None,
+            "assignee": None,
+            "labels": [],
+            "comments": [],
+            "history": [],
+        }
+        await issue_repo._collection.insert_one(raw_doc)
+
+        # When
+        fetched = await issue_repo.get_by_identifier("WDG-999")
+
+        # Then
+        assert fetched.sort_order == 0.0
