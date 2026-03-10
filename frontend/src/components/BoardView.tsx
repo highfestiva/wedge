@@ -34,7 +34,7 @@ const DropZone: React.FC<{
     <div
       data-testid={`drop-zone-${key}`}
       data-drop-active={active ? "true" : undefined}
-      className={active ? `h-28${animate ? " transition-all duration-150" : ""}` : "h-2 transition-all duration-150"}
+      className={active ? `h-28${animate ? " transition-all duration-150" : ""}` : `h-2${animate ? " transition-all duration-150" : ""}`}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -115,6 +115,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
   const handleDropZone = useCallback(
     (identifier: string, state: IssueState, index: number) => {
       pendingDragRef.current = null;
+      skipTransitionRef.current = true;
       setDraggingId(null);
       setActiveDropZone(null);
       onMoveIssue?.(identifier, state, index);
@@ -201,6 +202,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
                 const id = e.dataTransfer.getData("text/plain");
                 if (id) {
                   pendingDragRef.current = null;
+                  skipTransitionRef.current = true;
                   setDraggingId(null);
                   setActiveDropZone(null);
                   onMoveIssue?.(id, state, toFullIndex(visibleIssues.length));
@@ -267,6 +269,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
                           const midY = rect.top + rect.height / 2;
                           const dropIndex = e.clientY < midY ? i : i + 1;
                           pendingDragRef.current = null;
+                          skipTransitionRef.current = true;
                           setDraggingId(null);
                           setActiveDropZone(null);
                           onMoveIssue?.(id, state, toFullIndex(dropIndex));

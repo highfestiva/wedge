@@ -111,7 +111,7 @@
   }
 
   .board-grid {
-    @apply flex gap-3 overflow-x-auto pb-2;
+    @apply flex gap-3 overflow-visible pb-2;
   }
 
   .board-column {
