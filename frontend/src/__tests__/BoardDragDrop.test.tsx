@@ -200,3 +200,72 @@ describe("Sort Order Part 7 — onMoveIssue callback signature change", () => {
     expect(onMoveIssue).toHaveBeenCalledWith("WDG-X", "Todo", 2);
   });
 });
+
+// ===========================================================================
+// Bug fix: only one gap across all columns when dragging to empty space
+// ===========================================================================
+describe("Single gap across columns when dragging to empty space", () => {
+  it("clears the gap from the source column when dragging over a different column's empty space", () => {
+    const issues = [
+      makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Backlog" }),
+      makeIssue({ identifier: "WDG-2", id: "2", sortOrder: 2.0, state: "Backlog" }),
+      makeIssue({ identifier: "WDG-A", id: "a", sortOrder: 1.0, state: "In Progress" }),
+    ];
+    render(<BoardView issues={issues} />);
+
+    // Start dragging WDG-1
+    const card = screen.getByTestId("issue-card-WDG-1").closest("[draggable]")!;
+    const dataTransferData: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { dataTransferData[k] = v; },
+      getData: (k: string) => dataTransferData[k] ?? "",
+    };
+    fireEvent.dragStart(card, { dataTransfer });
+
+    // Activate a drop zone in Backlog column
+    const backlogZone = screen.getByTestId("drop-zone-Backlog-1");
+    fireEvent.dragOver(backlogZone, { preventDefault: () => {} });
+
+    // The Backlog zone should be active
+    expect(backlogZone.dataset.dropActive).toBe("true");
+
+    // Now drag over the "In Progress" column's container (empty space, not a drop zone)
+    const ipColumn = screen.getByTestId("column-In Progress");
+    fireEvent.dragOver(ipColumn, { preventDefault: () => {} });
+
+    // The Backlog zone should no longer be active
+    expect(backlogZone.dataset.dropActive).toBeUndefined();
+
+    // An "In Progress" zone should now be active (end-of-column)
+    const ipEndZone = screen.getByTestId("drop-zone-In Progress-1");
+    expect(ipEndZone.dataset.dropActive).toBe("true");
+  });
+
+  it("keeps the active zone when dragging within the same column's empty space", () => {
+    const issues = [
+      makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Todo" }),
+    ];
+    render(<BoardView issues={issues} />);
+
+    // Start dragging
+    const card = screen.getByTestId("issue-card-WDG-1").closest("[draggable]")!;
+    const dataTransferData: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { dataTransferData[k] = v; },
+      getData: (k: string) => dataTransferData[k] ?? "",
+    };
+    fireEvent.dragStart(card, { dataTransfer });
+
+    // Activate a drop zone in Todo column
+    const todoZone = screen.getByTestId("drop-zone-Todo-0");
+    fireEvent.dragOver(todoZone, { preventDefault: () => {} });
+    expect(todoZone.dataset.dropActive).toBe("true");
+
+    // Drag over the Todo column container (empty space below cards)
+    const todoColumn = screen.getByTestId("column-Todo");
+    fireEvent.dragOver(todoColumn, { preventDefault: () => {} });
+
+    // Should still have a Todo zone active (not cleared)
+    expect(todoZone.dataset.dropActive).toBe("true");
+  });
+});

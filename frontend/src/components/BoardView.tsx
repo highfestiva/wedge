@@ -23,17 +23,18 @@ const DropZone: React.FC<{
   state: IssueState;
   index: number;
   active: boolean;
+  animate: boolean;
   onDrop: (identifier: string, state: IssueState, index: number) => void;
   onActivate: (key: string) => void;
   onDeactivate: (key: string) => void;
-}> = ({ state, index, active, onDrop, onActivate, onDeactivate }) => {
+}> = ({ state, index, active, animate, onDrop, onActivate, onDeactivate }) => {
   const key = `${state}-${index}`;
 
   return (
     <div
       data-testid={`drop-zone-${key}`}
       data-drop-active={active ? "true" : undefined}
-      className={active ? "h-20 transition-all duration-150" : "h-2"}
+      className={active ? `h-28${animate ? " transition-all duration-150" : ""}` : "h-2 transition-all duration-150"}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -62,6 +63,15 @@ export const BoardView: React.FC<BoardViewProps> = ({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const deactivateTimer = useRef<number | null>(null);
+  // When true, the next drop-zone activation should skip its expand
+  // transition. Set when a drag begins so the initial gap appears instantly
+  // (filling the space left by the removed card). Cleared after the first
+  // activation so subsequent zone switches animate normally.
+  const skipTransitionRef = useRef(false);
+  // Tracks the identifier from the most recent dragStart so the deferred
+  // requestAnimationFrame callback becomes a no-op if a drop or dragEnd
+  // already occurred (which clears the ref).
+  const pendingDragRef = useRef<string | null>(null);
   // Tracks whether a sibling element received dragenter before the current
   // dragleave fires. Browser fires dragenter on the new target before
   // dragleave on the old target, so this flag lets us skip deactivation.
@@ -74,7 +84,15 @@ export const BoardView: React.FC<BoardViewProps> = ({
       deactivateTimer.current = null;
     }
     dragTransferRef.current = false;
-    setActiveDropZone(key);
+    setActiveDropZone((prev) => {
+      // First activation after drag start — clear the flag so subsequent
+      // switches animate.  The flag is read during render, so clearing it
+      // after this setState ensures the current render still sees it.
+      if (prev === null && skipTransitionRef.current) {
+        requestAnimationFrame(() => { skipTransitionRef.current = false; });
+      }
+      return key;
+    });
   }, []);
 
   const deactivateDropZone = useCallback((key: string) => {
@@ -96,6 +114,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
 
   const handleDropZone = useCallback(
     (identifier: string, state: IssueState, index: number) => {
+      pendingDragRef.current = null;
       setDraggingId(null);
       setActiveDropZone(null);
       onMoveIssue?.(identifier, state, index);
@@ -147,15 +166,44 @@ export const BoardView: React.FC<BoardViewProps> = ({
       <div className="board-grid">
         {ISSUE_STATES.map((state) => {
           const columnIssues = issuesByState(state);
+          const visibleIssues = columnIssues.filter((issue) => issue.identifier !== draggingId);
+          // Index of the dragged item in the full column (-1 if not in this
+          // column). Used to convert filtered-list indices back to full-list
+          // indices so BoardPage always receives consistent positions.
+          const dragOriginIndex = draggingId
+            ? columnIssues.findIndex((issue) => issue.identifier === draggingId)
+            : -1;
+          const toFullIndex = (filteredIdx: number) =>
+            dragOriginIndex >= 0 && filteredIdx > dragOriginIndex
+              ? filteredIdx + 1
+              : filteredIdx;
           return (
             <div key={state} data-testid={`column-${state}`} className="board-column"
-              onDragOver={(e) => e.preventDefault()}
+              onDragOver={(e) => {
+                e.preventDefault();
+                // Cancel any pending deactivation — we're actively dragging here.
+                if (deactivateTimer.current !== null) {
+                  cancelAnimationFrame(deactivateTimer.current);
+                  deactivateTimer.current = null;
+                }
+                // Ensure the active drop zone belongs to this column.
+                // Child DropZones stopPropagation so this only fires for
+                // cards (which already set their zone) and empty space.
+                // When dragging fast across columns, the leave/deactivate
+                // on the old column may never fire — this guarantees a
+                // single gap by switching to the end-of-column zone.
+                setActiveDropZone((prev) => {
+                  if (prev !== null && prev.startsWith(`${state}-`)) return prev;
+                  return `${state}-${visibleIssues.length}`;
+                });
+              }}
               onDrop={(e) => {
                 const id = e.dataTransfer.getData("text/plain");
                 if (id) {
+                  pendingDragRef.current = null;
                   setDraggingId(null);
                   setActiveDropZone(null);
-                  onMoveIssue?.(id, state, columnIssues.length);
+                  onMoveIssue?.(id, state, toFullIndex(visibleIssues.length));
                 }
               }}
             >
@@ -168,17 +216,23 @@ export const BoardView: React.FC<BoardViewProps> = ({
                 </span>
               </div>
               <div className="board-column-body">
-                <DropZone state={state} index={0} active={activeDropZone === `${state}-0`} onDrop={handleDropZone} onActivate={activateDropZone} onDeactivate={deactivateDropZone} />
-                {columnIssues.map((issue, i) => (
+                <DropZone state={state} index={0} active={activeDropZone === `${state}-0`} animate={!skipTransitionRef.current} onDrop={(id, st, idx) => handleDropZone(id, st, toFullIndex(idx))} onActivate={activateDropZone} onDeactivate={deactivateDropZone} />
+                {visibleIssues.map((issue, i) => (
                   <React.Fragment key={issue.identifier}>
                     <div
                       draggable
-                      className={draggingId === issue.identifier ? "hidden" : ""}
                       onDragStart={(e) => {
                         e.dataTransfer.setData("text/plain", issue.identifier);
-                        requestAnimationFrame(() => setDraggingId(issue.identifier));
+                        const id = issue.identifier;
+                        pendingDragRef.current = id;
+                        requestAnimationFrame(() => {
+                          if (pendingDragRef.current !== id) return;
+                          skipTransitionRef.current = true;
+                          setDraggingId(id);
+                        });
                       }}
                       onDragEnd={() => {
+                        pendingDragRef.current = null;
                         setDraggingId(null);
                         setActiveDropZone(null);
                       }}
@@ -201,15 +255,9 @@ export const BoardView: React.FC<BoardViewProps> = ({
                         const rect = e.currentTarget.getBoundingClientRect();
                         const midY = rect.top + rect.height / 2;
                         const clientY = e.clientY;
-                        // Only recompute zone if the active zone isn't already
-                        // one of this card's two adjacent zones. This prevents
-                        // oscillation when zone expansion shifts the card layout.
-                        setActiveDropZone((prev) => {
-                          const above = `${state}-${i}`;
-                          const below = `${state}-${i + 1}`;
-                          if (prev === above || prev === below) return prev;
-                          return clientY < midY ? above : below;
-                        });
+                        setActiveDropZone(
+                          clientY < midY ? `${state}-${i}` : `${state}-${i + 1}`,
+                        );
                       }}
                       onDrop={(e) => {
                         e.stopPropagation();
@@ -218,9 +266,10 @@ export const BoardView: React.FC<BoardViewProps> = ({
                           const rect = e.currentTarget.getBoundingClientRect();
                           const midY = rect.top + rect.height / 2;
                           const dropIndex = e.clientY < midY ? i : i + 1;
+                          pendingDragRef.current = null;
                           setDraggingId(null);
                           setActiveDropZone(null);
-                          onMoveIssue?.(id, state, dropIndex);
+                          onMoveIssue?.(id, state, toFullIndex(dropIndex));
                         }
                       }}
                     >
@@ -229,7 +278,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
                         onClick={() => onIssueClick?.(issue.identifier)}
                       />
                     </div>
-                    <DropZone state={state} index={i + 1} active={activeDropZone === `${state}-${i + 1}`} onDrop={handleDropZone} onActivate={activateDropZone} onDeactivate={deactivateDropZone} />
+                    <DropZone state={state} index={i + 1} active={activeDropZone === `${state}-${i + 1}`} animate={!skipTransitionRef.current} onDrop={(id, st, idx) => handleDropZone(id, st, toFullIndex(idx))} onActivate={activateDropZone} onDeactivate={deactivateDropZone} />
                   </React.Fragment>
                 ))}
               </div>
