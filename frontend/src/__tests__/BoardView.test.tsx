@@ -4,7 +4,7 @@
  * Tests 1.1 – 1.6 from the frontend TDD plan.
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within, fireEvent } from "@testing-library/react";
+import { render, screen, within, fireEvent, act } from "@testing-library/react";
 import { BoardView } from "../components/BoardView";
 import { ISSUE_STATES } from "../types";
 import type { Issue, IssueState } from "../types";
@@ -409,7 +409,7 @@ describe("Sort Order Part 6 — Drag drop visual feedback", () => {
   // -----------------------------------------------------------------------
   // Test 6.2 — Visual indicator is removed after dragLeave
   // -----------------------------------------------------------------------
-  it("6.2 — visual indicator is removed after dragLeave", () => {
+  it("6.2 — visual indicator is removed after dragLeave", async () => {
     // Given a drop zone is in the dragOver state
     const issues: Issue[] = [
       makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Backlog" }),
@@ -421,6 +421,9 @@ describe("Sort Order Part 6 — Drag drop visual feedback", () => {
 
     // When fireEvent.dragLeave fires on the drop zone
     fireEvent.dragLeave(dropZone);
+
+    // Deactivation is deferred via requestAnimationFrame to avoid flicker
+    await act(() => new Promise((r) => requestAnimationFrame(r)));
 
     // Then the visual indicator is removed
     expect(dropZone).not.toHaveAttribute("data-drop-active", "true");

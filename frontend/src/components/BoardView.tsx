@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import type { Issue, IssueState } from "../types";
 import { ISSUE_STATES } from "../types";
 import { IssueCard } from "./IssueCard";
@@ -33,7 +33,7 @@ const DropZone: React.FC<{
     <div
       data-testid={`drop-zone-${key}`}
       data-drop-active={active ? "true" : undefined}
-      className={`transition-all ${active ? "h-20" : "h-1"}`}
+      className={active ? "h-20 transition-all duration-150" : "h-2"}
       onDragOver={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -61,13 +61,37 @@ export const BoardView: React.FC<BoardViewProps> = ({
 }) => {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
+  const deactivateTimer = useRef<number | null>(null);
+  // Tracks whether a sibling element received dragenter before the current
+  // dragleave fires. Browser fires dragenter on the new target before
+  // dragleave on the old target, so this flag lets us skip deactivation.
+  const dragTransferRef = useRef(false);
 
   const activateDropZone = useCallback((key: string) => {
+    // Cancel any pending deactivation — the cursor moved to a sibling element.
+    if (deactivateTimer.current !== null) {
+      cancelAnimationFrame(deactivateTimer.current);
+      deactivateTimer.current = null;
+    }
+    dragTransferRef.current = false;
     setActiveDropZone(key);
   }, []);
 
   const deactivateDropZone = useCallback((key: string) => {
-    setActiveDropZone((prev) => (prev === key ? null : prev));
+    // If a sibling already received dragenter, skip deactivation entirely.
+    if (dragTransferRef.current) {
+      dragTransferRef.current = false;
+      return;
+    }
+    // Defer deactivation to the next frame so that a dragOver on an adjacent
+    // element (which fires synchronously before the next paint) can cancel it.
+    if (deactivateTimer.current !== null) {
+      cancelAnimationFrame(deactivateTimer.current);
+    }
+    deactivateTimer.current = requestAnimationFrame(() => {
+      deactivateTimer.current = null;
+      setActiveDropZone((prev) => (prev === key ? null : prev));
+    });
   }, []);
 
   const handleDropZone = useCallback(
@@ -149,7 +173,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
                   <React.Fragment key={issue.identifier}>
                     <div
                       draggable
-                      className={draggingId === issue.identifier ? "opacity-0" : ""}
+                      className={draggingId === issue.identifier ? "hidden" : ""}
                       onDragStart={(e) => {
                         e.dataTransfer.setData("text/plain", issue.identifier);
                         requestAnimationFrame(() => setDraggingId(issue.identifier));
@@ -158,12 +182,34 @@ export const BoardView: React.FC<BoardViewProps> = ({
                         setDraggingId(null);
                         setActiveDropZone(null);
                       }}
+                      onDragEnter={() => {
+                        // Signal that a sibling received the drag before
+                        // the old element's dragleave fires.
+                        dragTransferRef.current = true;
+                      }}
                       onDragOver={(e) => {
                         e.preventDefault();
+                        // Cancel any pending deactivation from a DropZone we
+                        // just left — prevents the deferred null from clobbering
+                        // the zone we're about to (re)activate.
+                        if (deactivateTimer.current !== null) {
+                          cancelAnimationFrame(deactivateTimer.current);
+                          deactivateTimer.current = null;
+                        }
+                        // Capture DOM measurements synchronously before the
+                        // synthetic event is nullified by React.
                         const rect = e.currentTarget.getBoundingClientRect();
                         const midY = rect.top + rect.height / 2;
-                        const dropIndex = e.clientY < midY ? i : i + 1;
-                        setActiveDropZone(`${state}-${dropIndex}`);
+                        const clientY = e.clientY;
+                        // Only recompute zone if the active zone isn't already
+                        // one of this card's two adjacent zones. This prevents
+                        // oscillation when zone expansion shifts the card layout.
+                        setActiveDropZone((prev) => {
+                          const above = `${state}-${i}`;
+                          const below = `${state}-${i + 1}`;
+                          if (prev === above || prev === below) return prev;
+                          return clientY < midY ? above : below;
+                        });
                       }}
                       onDrop={(e) => {
                         e.stopPropagation();

@@ -128,7 +128,7 @@
   }
 
   .board-column-body {
-    @apply flex-1 space-y-2.5 px-2.5 py-2.5 overflow-y-auto;
+    @apply flex-1 px-2.5 py-2.5 overflow-y-auto;
   }
 
   .card {
