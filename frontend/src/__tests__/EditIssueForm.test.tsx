@@ -1,11 +1,11 @@
 /**
- * Tests for Issue Detail View — Display — TDD Red Phase
+ * Tests for EditIssueForm — Display — TDD Red Phase
  *
  * Tests 3.1 – 3.4 from the frontend TDD plan.
  */
 import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
-import { IssueDetailView } from "../components/IssueDetailView";
+import { EditIssueForm } from "../components/EditIssueForm";
 import type { Issue } from "../types";
 
 function makeIssue(overrides: Partial<Issue> = {}): Issue {
@@ -45,11 +45,11 @@ describe("3.1 Issue detail renders all fields", () => {
     const issue = makeIssue();
 
     // When
-    render(<IssueDetailView issue={issue} />);
+    render(<EditIssueForm issue={issue} />);
 
     // Then
     expect(screen.getByTestId("issue-identifier")).toHaveTextContent("WDG-1");
-    expect(screen.getByTestId("issue-title")).toHaveTextContent("Detail issue");
+    expect(screen.getByTestId("issue-title")).toHaveValue("Detail issue");
     expect(screen.getByTestId("issue-description")).toHaveTextContent("Some description");
     expect(screen.getByTestId("issue-state")).toHaveValue("In Progress");
     expect(screen.getByTestId("issue-priority")).toHaveValue("high");
@@ -70,7 +70,7 @@ describe("3.2 Comments are listed in chronological order", () => {
     const issue = makeIssue();
 
     // When
-    render(<IssueDetailView issue={issue} />);
+    render(<EditIssueForm issue={issue} />);
 
     // Then
     const commentsSection = screen.getByTestId("comments-section");
@@ -89,7 +89,7 @@ describe("3.3 History entries are listed in chronological order", () => {
     const issue = makeIssue();
 
     // When
-    render(<IssueDetailView issue={issue} />);
+    render(<EditIssueForm issue={issue} />);
 
     // Then
     const historySection = screen.getByTestId("history-section");
@@ -110,7 +110,7 @@ describe("3.3 History entries are listed in chronological order", () => {
 describe("3.4 Issue detail — not found", () => {
   it("given no issue, when the detail view is rendered with null, then a not-found message is shown", () => {
     // Given / When
-    render(<IssueDetailView issue={null} />);
+    render(<EditIssueForm issue={null} />);
 
     // Then
     expect(screen.getByTestId("not-found")).toBeInTheDocument();

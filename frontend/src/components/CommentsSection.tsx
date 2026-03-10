@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Comment } from "../types";
+import { formatTimestamp } from "../utils/formatTimestamp";
 
 export interface CommentsSectionProps {
   comments: Comment[];
@@ -38,7 +39,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({
                 {c.author}
               </strong>
               <time data-testid="comment-time" className="text-[11px] text-t-dim">
-                {c.createdAt}
+                {formatTimestamp(c.createdAt)}
               </time>
             </div>
             <p data-testid="comment-body" className="text-sm text-t-tertiary leading-relaxed">

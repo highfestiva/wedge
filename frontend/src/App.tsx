@@ -8,6 +8,7 @@ import {
 } from "react-router-dom";
 import { Provider } from "urql";
 import { client } from "./graphql/client";
+import { CreateIssueActionProvider } from "./contexts/CreateIssueContext";
 import { BoardPage } from "./pages/BoardPage";
 import { IssueDetailPage } from "./pages/IssueDetailPage";
 import { Header } from "./components/Header";
@@ -27,6 +28,7 @@ export const App: React.FC = () => {
   return (
     <Provider value={client}>
       <BrowserRouter>
+        <CreateIssueActionProvider>
         <RouteLogger />
         <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-5 space-y-5">
           <Header />
@@ -45,6 +47,7 @@ export const App: React.FC = () => {
             </Routes>
           </main>
         </div>
+      </CreateIssueActionProvider>
       </BrowserRouter>
     </Provider>
   );

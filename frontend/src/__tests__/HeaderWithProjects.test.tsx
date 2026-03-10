@@ -23,6 +23,7 @@ vi.mock("urql", () => ({
 }));
 
 import { Header } from "../components/Header";
+import { CreateIssueActionProvider } from "../contexts/CreateIssueContext";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -46,6 +47,7 @@ function LocationDisplay() {
 function renderHeader(initialPath = "/projects/ALP/board") {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
+      <CreateIssueActionProvider>
       <Routes>
         <Route
           path="/projects/:projectPrefix/board"
@@ -57,6 +59,7 @@ function renderHeader(initialPath = "/projects/ALP/board") {
           }
         />
       </Routes>
+      </CreateIssueActionProvider>
     </MemoryRouter>
   );
 }

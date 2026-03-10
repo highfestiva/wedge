@@ -1,12 +1,14 @@
 /** BoardPage — data-fetching wrapper for the BoardView component. */
 
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "urql";
-import { PROJECTS_QUERY, ISSUES_QUERY } from "../graphql/queries";
-import { UPDATE_ISSUE_MUTATION, CREATE_ISSUE_MUTATION } from "../graphql/mutations";
+import { PROJECTS_QUERY, ISSUES_QUERY, ISSUE_QUERY } from "../graphql/queries";
+import { UPDATE_ISSUE_MUTATION, CREATE_ISSUE_MUTATION, ADD_COMMENT_MUTATION } from "../graphql/mutations";
 import { BoardView } from "../components/BoardView";
 import { CreateIssueForm } from "../components/CreateIssueForm";
+import { EditIssueForm } from "../components/EditIssueForm";
+import { useCreateIssueAction } from "../contexts/CreateIssueContext";
 import { createLogger } from "../utils/logger";
 import type { Issue, IssueState, CreateIssueInput, Project } from "../types";
 
@@ -14,24 +16,37 @@ const log = createLogger("board");
 
 export const BoardPage: React.FC = () => {
   const { projectPrefix } = useParams<{ projectPrefix: string }>();
-  const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingIdentifier, setEditingIdentifier] = useState<string | null>(null);
   const [localIssues, setLocalIssues] = useState<Issue[]>([]);
   const [moveError, setMoveError] = useState<string | null>(null);
+  const { setOnCreateIssue } = useCreateIssueAction();
+
+  useEffect(() => {
+    setOnCreateIssue(() => () => setShowCreateForm(true));
+    return () => setOnCreateIssue(null);
+  }, [setOnCreateIssue]);
 
   const [projectsResult] = useQuery({ query: PROJECTS_QUERY });
   const projects: Project[] = projectsResult.data?.projects ?? [];
   const project = projects.find((p) => p.prefix === projectPrefix);
   const projectId = project?.id ?? "";
 
-  const [queryResult] = useQuery({
+  const [queryResult, reexecuteIssuesQuery] = useQuery({
     query: ISSUES_QUERY,
     variables: { projectId },
     pause: !projectId,
   });
 
+  const [issueResult] = useQuery({
+    query: ISSUE_QUERY,
+    variables: { identifier: editingIdentifier ?? "" },
+    pause: !editingIdentifier,
+  });
+
   const [, executeUpdateMutation] = useMutation(UPDATE_ISSUE_MUTATION);
   const [, executeCreateMutation] = useMutation(CREATE_ISSUE_MUTATION);
+  const [, executeCommentMutation] = useMutation(ADD_COMMENT_MUTATION);
 
   const { fetching, data, error } = queryResult;
 
@@ -144,30 +159,53 @@ export const BoardPage: React.FC = () => {
   };
 
   const handleIssueClick = (identifier: string) => {
-    navigate(`/projects/${projectPrefix}/issues/${identifier}`);
+    setEditingIdentifier(identifier);
   };
 
-  const handleCreateIssue = () => {
-    setShowCreateForm(true);
+  const handleUpdateField = (field: string, value: string | string[]) => {
+    if (!editingIdentifier) return;
+    log.info(`updateField ${editingIdentifier} ${field}`);
+    executeUpdateMutation({ identifier: editingIdentifier, [field]: value }).then((res) => {
+      if (!res?.error) {
+        reexecuteIssuesQuery({ requestPolicy: "network-only" });
+      }
+    });
+  };
+
+  const handleAddComment = (body: string) => {
+    if (!editingIdentifier) return;
+    log.info(`addComment on ${editingIdentifier}`);
+    executeCommentMutation({ issueIdentifier: editingIdentifier, body });
   };
 
   const handleCreateSubmit = (input: CreateIssueInput) => {
-    executeCreateMutation(input);
+    executeCreateMutation(input).then((res) => {
+      if (!res?.error) {
+        reexecuteIssuesQuery({ requestPolicy: "network-only" });
+      }
+    });
     setShowCreateForm(false);
   };
 
-  if (showCreateForm) {
-    return (
-      <CreateIssueForm
-        projectId={projectId ?? ""}
-        onSubmit={handleCreateSubmit}
-        onClose={() => setShowCreateForm(false)}
-      />
-    );
-  }
-
   return (
     <>
+      {showCreateForm && (
+        <CreateIssueForm
+          projectId={projectId ?? ""}
+          onSubmit={handleCreateSubmit}
+          onClose={() => setShowCreateForm(false)}
+        />
+      )}
+      {editingIdentifier && (
+        <EditIssueForm
+          issue={issueResult.data?.issue ?? null}
+          loading={issueResult.fetching}
+          error={issueResult.error?.message ?? null}
+          onUpdateField={handleUpdateField}
+          onAddComment={handleAddComment}
+          onCancel={() => setEditingIdentifier(null)}
+        />
+      )}
       {moveError && (
         <div data-testid="move-error" className="mx-auto max-w-lg mb-4">
           <div className="rounded-xl border border-t-error-border bg-t-error-bg px-5 py-4 text-sm text-t-error-text">
@@ -177,10 +215,9 @@ export const BoardPage: React.FC = () => {
       )}
       <BoardView
         issues={localIssues}
-        loading={fetching}
+        loading={fetching && localIssues.length === 0}
         error={error?.message ?? null}
         onMoveIssue={handleMoveIssue}
-        onCreateIssue={handleCreateIssue}
         onIssueClick={handleIssueClick}
       />
     </>

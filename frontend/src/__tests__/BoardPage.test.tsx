@@ -18,6 +18,11 @@ let mockIssuesResult: { fetching: boolean; data?: unknown; error?: unknown } = {
   data: undefined,
   error: undefined,
 };
+let mockIssueResult: { fetching: boolean; data?: unknown; error?: unknown } = {
+  fetching: false,
+  data: undefined,
+  error: undefined,
+};
 let mockUseQueryArgs: unknown = undefined;
 const mockMutationExecute = vi.fn();
 
@@ -25,6 +30,9 @@ vi.mock("urql", () => ({
   useQuery: (args: { query: string; variables?: unknown; pause?: boolean }) => {
     if (args.query.includes("Projects")) {
       return [mockProjectsResult];
+    }
+    if (args.query.includes("$identifier")) {
+      return [mockIssueResult];
     }
     mockUseQueryArgs = args;
     return [mockIssuesResult];
@@ -36,6 +44,8 @@ vi.mock("urql", () => ({
 }));
 
 import { BoardPage } from "../pages/BoardPage";
+import { Header } from "../components/Header";
+import { CreateIssueActionProvider } from "../contexts/CreateIssueContext";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -71,6 +81,8 @@ function LocationDisplay() {
 function renderBoardPage(projectPrefix = "default") {
   return render(
     <MemoryRouter initialEntries={[`/projects/${projectPrefix}/board`]}>
+      <CreateIssueActionProvider>
+      <Header />
       <Routes>
         <Route path="/projects/:projectPrefix/board" element={<BoardPage />} />
         <Route
@@ -78,6 +90,7 @@ function renderBoardPage(projectPrefix = "default") {
           element={<LocationDisplay />}
         />
       </Routes>
+      </CreateIssueActionProvider>
     </MemoryRouter>
   );
 }
@@ -92,6 +105,7 @@ beforeEach(() => {
     error: undefined,
   };
   mockIssuesResult = { fetching: false, data: undefined, error: undefined };
+  mockIssueResult = { fetching: false, data: undefined, error: undefined };
   mockUseQueryArgs = undefined;
   mockMutationExecute.mockReset();
   vi.spyOn(console, "log").mockImplementation(() => {});
@@ -222,7 +236,7 @@ describe("BoardPage (Part B)", () => {
   // -----------------------------------------------------------------------
   // Test B.6 — onIssueClick navigates to issue detail route
   // -----------------------------------------------------------------------
-  it("B.6 — onIssueClick navigates to issue detail route", async () => {
+  it("B.6 — onIssueClick opens issue edit modal", async () => {
     // Given the board is rendered with an issue
     const user = userEvent.setup();
     const issue = makeIssue({ identifier: "DEF-1", title: "Clickable issue" });
@@ -230,15 +244,17 @@ describe("BoardPage (Part B)", () => {
       fetching: false,
       data: { issues: { items: [issue], cursor: null } },
     };
+    mockIssueResult = {
+      fetching: false,
+      data: { issue },
+    };
     renderBoardPage();
 
     // When an issue card is clicked
     await user.click(screen.getByText("Clickable issue"));
 
-    // Then the URL changes to the issue detail route
-    expect(screen.getByTestId("location-display").textContent).toBe(
-      "/projects/default/issues/DEF-1"
-    );
+    // Then the edit form modal appears
+    expect(screen.getByTestId("issue-detail")).toBeInTheDocument();
   });
 
   // -----------------------------------------------------------------------

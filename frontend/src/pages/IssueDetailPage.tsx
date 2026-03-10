@@ -1,17 +1,18 @@
 /** IssueDetailPage — data-fetching wrapper for the IssueDetailView component. */
 
 import React from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "urql";
 import { ISSUE_QUERY } from "../graphql/queries";
 import { UPDATE_ISSUE_MUTATION, ADD_COMMENT_MUTATION } from "../graphql/mutations";
-import { IssueDetailView } from "../components/IssueDetailView";
+import { EditIssueForm } from "../components/EditIssueForm";
 import { createLogger } from "../utils/logger";
 
 const log = createLogger("issue");
 
 export const IssueDetailPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
+  const navigate = useNavigate();
 
   const [queryResult] = useQuery({
     query: ISSUE_QUERY,
@@ -38,12 +39,13 @@ export const IssueDetailPage: React.FC = () => {
   };
 
   return (
-    <IssueDetailView
+    <EditIssueForm
       issue={data?.issue ?? null}
       loading={fetching}
       error={error?.message ?? null}
       onUpdateField={handleUpdateField}
       onAddComment={handleAddComment}
+      onCancel={() => navigate(-1)}
     />
   );
 };

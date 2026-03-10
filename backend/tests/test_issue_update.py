@@ -326,12 +326,12 @@ class TestUpdateSortOrder:
 # ---------------------------------------------------------------------------
 
 class TestUpdateSortOrderHistory:
-    async def test_update_sort_order_creates_history_entry(
+    async def test_update_sort_order_does_not_create_history_entry(
         self, issue_repo: IssueRepository, sample_issue: Issue
     ):
         """Given an existing issue with default sort_order,
         when updating sort_order to 2.5,
-        then a HistoryEntry with field='sort_order' is appended."""
+        then no HistoryEntry with field='sort_order' is appended."""
         # When
         updated = await issue_repo.update(
             identifier=sample_issue.identifier,
@@ -340,10 +340,8 @@ class TestUpdateSortOrderHistory:
         )
 
         # Then
-        entry = next(h for h in updated.history if h.field == "sort_order")
-        assert entry.to_value == "2.5"
-        assert entry.actor == "editor@test.com"
-        assert entry.timestamp is not None
+        sort_order_entries = [h for h in updated.history if h.field == "sort_order"]
+        assert len(sort_order_entries) == 0
 
 
 # ---------------------------------------------------------------------------
@@ -401,8 +399,8 @@ class TestUpdateSortOrderWithOtherFields:
         assert updated.sort_order == 1.5
         history_fields = [h.field for h in updated.history]
         assert "state" in history_fields
-        assert "sort_order" in history_fields
-        assert len(updated.history) >= 2
+        assert "sort_order" not in history_fields
+        assert len(updated.history) >= 1
 
 
 # ---------------------------------------------------------------------------

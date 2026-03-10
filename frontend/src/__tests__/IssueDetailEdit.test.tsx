@@ -1,12 +1,12 @@
 /**
- * Tests for Issue Detail View — Editing — TDD Red Phase
+ * Tests for EditIssueForm — Editing — TDD Red Phase
  *
  * Tests 4.1 – 4.6 from the frontend TDD plan.
  */
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { IssueDetailView } from "../components/IssueDetailView";
+import { EditIssueForm } from "../components/EditIssueForm";
 import type { Issue } from "../types";
 
 function makeIssue(overrides: Partial<Issue> = {}): Issue {
@@ -35,15 +35,17 @@ function makeIssue(overrides: Partial<Issue> = {}): Issue {
 // 4.1 Editing title fires updateIssue mutation
 // ---------------------------------------------------------------------------
 describe("4.1 Editing title fires onUpdateField", () => {
-  it("given an issue displayed, when the title is changed and blurred, then onUpdateField is called with the new title", () => {
+  it("given an issue displayed, when the title is changed and saved, then onUpdateField is called with the new title", async () => {
     // Given
     const onUpdateField = vi.fn();
-    render(<IssueDetailView issue={makeIssue()} onUpdateField={onUpdateField} />);
+    render(<EditIssueForm issue={makeIssue()} onUpdateField={onUpdateField} />);
 
     // When
+    const user = userEvent.setup();
     const titleEl = screen.getByTestId("issue-title");
-    titleEl.textContent = "New Title";
-    fireEvent.blur(titleEl);
+    await user.clear(titleEl);
+    await user.type(titleEl, "New Title");
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then
     expect(onUpdateField).toHaveBeenCalledWith("title", "New Title");
@@ -58,10 +60,11 @@ describe("4.2 Changing state via dropdown", () => {
     // Given
     const onUpdateField = vi.fn();
     const user = userEvent.setup();
-    render(<IssueDetailView issue={makeIssue()} onUpdateField={onUpdateField} />);
+    render(<EditIssueForm issue={makeIssue()} onUpdateField={onUpdateField} />);
 
     // When
     await user.selectOptions(screen.getByTestId("issue-state"), "In Progress");
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then
     expect(onUpdateField).toHaveBeenCalledWith("state", "In Progress");
@@ -76,10 +79,11 @@ describe("4.3 Changing priority via dropdown", () => {
     // Given
     const onUpdateField = vi.fn();
     const user = userEvent.setup();
-    render(<IssueDetailView issue={makeIssue()} onUpdateField={onUpdateField} />);
+    render(<EditIssueForm issue={makeIssue()} onUpdateField={onUpdateField} />);
 
     // When
     await user.selectOptions(screen.getByTestId("issue-priority"), "high");
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then
     expect(onUpdateField).toHaveBeenCalledWith("priority", "high");
@@ -94,15 +98,16 @@ describe("4.4 Changing assignee", () => {
     // Given
     const onUpdateField = vi.fn();
     const user = userEvent.setup();
-    render(<IssueDetailView issue={makeIssue()} onUpdateField={onUpdateField} />);
+    render(<EditIssueForm issue={makeIssue()} onUpdateField={onUpdateField} />);
 
     // When
     const input = screen.getByTestId("issue-assignee");
     await user.clear(input);
     await user.type(input, "carol@test.com");
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then
-    expect(onUpdateField).toHaveBeenCalledWith("assignee", expect.stringContaining("carol"));
+    expect(onUpdateField).toHaveBeenCalledWith("assignee", "carol@test.com");
   });
 });
 
@@ -114,15 +119,16 @@ describe("4.5 Editing labels", () => {
     // Given
     const onUpdateField = vi.fn();
     const user = userEvent.setup();
-    render(<IssueDetailView issue={makeIssue()} onUpdateField={onUpdateField} />);
+    render(<EditIssueForm issue={makeIssue()} onUpdateField={onUpdateField} />);
 
     // When
     const input = screen.getByTestId("issue-labels");
     await user.clear(input);
     await user.type(input, "feature, improvement");
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then
-    expect(onUpdateField).toHaveBeenCalledWith("labels", expect.arrayContaining(["feature"]));
+    expect(onUpdateField).toHaveBeenCalledWith("labels", ["feature", "improvement"]);
   });
 });
 
@@ -130,17 +136,17 @@ describe("4.5 Editing labels", () => {
 // 4.6 Editing description fires updateIssue mutation
 // ---------------------------------------------------------------------------
 describe("4.6 Editing description", () => {
-  it("given an issue, when the description is modified and blurred, then onUpdateField is called", async () => {
+  it("given an issue, when the description is modified and saved, then onUpdateField is called", async () => {
     // Given
     const onUpdateField = vi.fn();
     const user = userEvent.setup();
-    render(<IssueDetailView issue={makeIssue()} onUpdateField={onUpdateField} />);
+    render(<EditIssueForm issue={makeIssue()} onUpdateField={onUpdateField} />);
 
     // When
     const textarea = screen.getByTestId("issue-description");
     await user.clear(textarea);
     await user.type(textarea, "Updated description");
-    fireEvent.blur(textarea);
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then
     expect(onUpdateField).toHaveBeenCalledWith("description", "Updated description");

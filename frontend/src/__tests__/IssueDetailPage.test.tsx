@@ -141,7 +141,7 @@ describe("IssueDetailPage (Part B)", () => {
 
     // Then the issue detail view shows the issue title
     expect(screen.getByTestId("issue-detail")).toBeInTheDocument();
-    expect(screen.getByTestId("issue-title").textContent).toBe(
+    expect(screen.getByTestId("issue-title")).toHaveValue(
       "Test issue detail"
     );
   });
@@ -172,9 +172,10 @@ describe("IssueDetailPage (Part B)", () => {
     mockQueryResult = { fetching: false, data: { issue } };
     renderDetailPage();
 
-    // When a field (state) is changed via the UI
+    // When a field (state) is changed via the UI and saved
     const stateSelect = screen.getByTestId("issue-state");
     await user.selectOptions(stateSelect, "In Progress");
+    await user.click(screen.getByTestId("submit-btn"));
 
     // Then the mutation execute function is called with correct variables
     expect(mockMutationExecute).toHaveBeenCalledWith(

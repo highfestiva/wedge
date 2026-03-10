@@ -136,21 +136,8 @@ describe("1.5 Board renders empty state", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 1.6 Create-issue button is visible
-// ---------------------------------------------------------------------------
-describe("1.6 Create-issue button is visible", () => {
-  it("given the board view, when rendered, then a create-issue button is present", () => {
-    // Given / When
-    render(<BoardView issues={[]} />);
-
-    // Then
-    expect(screen.getByTestId("create-issue-btn")).toBeInTheDocument();
-  });
-});
-
-// ===========================================================================
 // Sort Order — Part 1: sortOrder Field Rendering
-// ===========================================================================
+// ---------------------------------------------------------------------------
 describe("Sort Order Part 1 — Issues sorted by sortOrder within columns", () => {
   // -----------------------------------------------------------------------
   // Test 1.1 — Issues within a column are rendered sorted by sortOrder

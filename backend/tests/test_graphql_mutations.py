@@ -447,7 +447,7 @@ class TestMutationUpdateIssueSortOrder:
         assert "errors" not in data
         updated = data["data"]["updateIssue"]
         assert updated["sortOrder"] == 2.5
-        assert any(h["field"] == "sort_order" for h in updated["history"])
+        assert not any(h["field"] == "sort_order" for h in updated["history"])
 
 
 # ---------------------------------------------------------------------------

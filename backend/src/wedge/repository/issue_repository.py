@@ -255,14 +255,6 @@ class IssueRepository:
 
         if sort_order is not None and sort_order != issue.sort_order:
             updates["sort_order"] = sort_order
-            history_entries.append({
-                "id": str(ObjectId()),
-                "actor": actor,
-                "field": "sort_order",
-                "from_value": str(issue.sort_order),
-                "to_value": str(sort_order),
-                "timestamp": now,
-            })
 
         for field_name, (new_val, old_val) in field_map.items():
             if new_val is not None and new_val != old_val:
