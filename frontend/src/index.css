@@ -131,13 +131,17 @@
   }
 
   .card {
-    @apply rounded-xl p-3 transition-all duration-150 cursor-pointer;
+    @apply rounded-xl p-3 cursor-pointer;
     background-color: var(--t-card);
     border: 1px solid var(--t-border-card);
   }
   .card:hover {
     background-color: var(--t-card-hover);
     border-color: var(--t-border-hover);
+  }
+  [data-dragging] .card:hover {
+    background-color: var(--t-card);
+    border-color: var(--t-border-card);
   }
 
   .section-card {
@@ -212,5 +216,9 @@
   .pill {
     @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium;
   }
-}
 
+  .project-select-label {
+    @apply inline px-3 text-xs font-medium uppercase;
+    color: var(--t-text-muted);
+  }
+}

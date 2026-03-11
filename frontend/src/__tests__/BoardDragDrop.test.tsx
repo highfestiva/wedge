@@ -269,3 +269,47 @@ describe("Single gap across columns when dragging to empty space", () => {
     expect(todoZone.dataset.dropActive).toBe("true");
   });
 });
+
+// ===========================================================================
+// Bug fix: card returns to original position when dropped outside board
+// ===========================================================================
+describe("Card reappears when dropped outside the board", () => {
+  it("given a card is being dragged, when dragend fires (drop outside board), then the card reappears", () => {
+    vi.useFakeTimers();
+    try {
+      const issues = [
+        makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Todo" }),
+      ];
+      const onMoveIssue = vi.fn();
+      render(<BoardView issues={issues} onMoveIssue={onMoveIssue} />);
+
+      // Card is visible initially
+      expect(screen.getByTestId("issue-card-WDG-1")).toBeInTheDocument();
+
+      // Start dragging — capture the draggable wrapper before rAF unmounts it
+      const card = screen.getByTestId("issue-card-WDG-1").closest("[draggable]")!;
+      const dataTransferData: Record<string, string> = {};
+      const dataTransfer = {
+        setData: (k: string, v: string) => { dataTransferData[k] = v; },
+        getData: (k: string) => dataTransferData[k] ?? "",
+      };
+      fireEvent.dragStart(card, { dataTransfer });
+
+      // Flush the requestAnimationFrame that sets draggingId and unmounts the card
+      act(() => { vi.runAllTimers(); });
+
+      // The card's element is now detached from the DOM by React.
+      // Simulate the browser firing dragend on the (detached) source element.
+      act(() => {
+        card.dispatchEvent(new Event("dragend", { bubbles: true }));
+      });
+
+      // Card should be visible again
+      expect(screen.getByTestId("issue-card-WDG-1")).toBeInTheDocument();
+      // onMoveIssue should NOT have been called
+      expect(onMoveIssue).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

@@ -1,5 +1,6 @@
 import React from "react";
 import type { Issue } from "../types";
+import { getInitials, hashColor } from "../utils/user";
 
 export interface IssueCardProps {
   issue: Issue;
@@ -15,12 +16,10 @@ const priorityDot: Record<string, string> = {
 };
 
 export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
-  const initials = issue.assignee
-    ? issue.assignee
-        .split("@")[0]
-        .slice(0, 2)
-        .toUpperCase()
-    : "—";
+  const initials = issue.assignee ? getInitials(issue.assignee) : "—";
+  const avatarStyle = issue.assignee
+    ? { backgroundColor: hashColor(issue.assignee) }
+    : undefined;
 
   return (
     <div
@@ -37,7 +36,8 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
         </span>
         <span
           data-testid="issue-assignee"
-          className="flex h-5 w-5 items-center justify-center rounded-full bg-t-avatar text-[9px] font-semibold text-t-tertiary"
+          className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold ${issue.assignee ? "text-white" : "bg-t-avatar text-t-tertiary"}`}
+          style={avatarStyle}
           title={issue.assignee ?? "Unassigned"}
         >
           {initials}

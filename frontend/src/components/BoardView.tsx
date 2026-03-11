@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { flushSync } from "react-dom";
 import type { Issue, IssueState } from "../types";
 import { ISSUE_STATES } from "../types";
 import { IssueCard } from "./IssueCard";
@@ -74,6 +75,18 @@ export const BoardView: React.FC<BoardViewProps> = ({
   // dragleave on the old target, so this flag lets us skip deactivation.
   const dragTransferRef = useRef(false);
 
+  // After the first render where a drop zone is active during a drag,
+  // enable animations so subsequent zone switches transition smoothly.
+  // useEffect fires after paint, so the initial zone appears instantly
+  // (animateZones is still false during that render) and only future
+  // zone changes get the 150ms transition.
+  useEffect(() => {
+    if (draggingId && activeDropZone !== null && !animateZones) {
+      setAnimateZones(true);
+    }
+  }, [draggingId, activeDropZone, animateZones]);
+
+
   const activateDropZone = useCallback((key: string) => {
     // Cancel any pending deactivation — the cursor moved to a sibling element.
     if (deactivateTimer.current !== null) {
@@ -81,16 +94,8 @@ export const BoardView: React.FC<BoardViewProps> = ({
       deactivateTimer.current = null;
     }
     dragTransferRef.current = false;
-    setActiveDropZone((prev) => {
-      // First activation after drag start — enable animations for
-      // subsequent zone switches.  The setState is batched with this
-      // one so the current render still sees animateZones=false.
-      if (prev === null && !animateZones) {
-        requestAnimationFrame(() => { setAnimateZones(true); });
-      }
-      return key;
-    });
-  }, [animateZones]);
+    setActiveDropZone(key);
+  }, []);
 
   const deactivateDropZone = useCallback((key: string) => {
     // If a sibling already received dragenter, skip deactivation entirely.
@@ -150,7 +155,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
       .sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
-    <div data-testid="board" className="space-y-4">
+    <div data-testid="board" className="space-y-4" {...(draggingId ? { "data-dragging": "true" } : {})}>
       <div className="board-grid">
         {ISSUE_STATES.map((state) => {
           const columnIssues = issuesByState(state);
@@ -214,9 +219,23 @@ export const BoardView: React.FC<BoardViewProps> = ({
                         e.dataTransfer.setData("text/plain", issue.identifier);
                         const id = issue.identifier;
                         pendingDragRef.current = id;
+                        // Attach a native dragend listener directly on the DOM
+                        // node.  When React unmounts this element (after setting
+                        // draggingId), dragend no longer bubbles to document,
+                        // but a listener on the node itself still fires.
+                        const el = e.currentTarget as HTMLElement;
+                        const onNativeDragEnd = () => {
+                          el.removeEventListener("dragend", onNativeDragEnd);
+                          pendingDragRef.current = null;
+                          setAnimateZones(false);
+                          setDraggingId(null);
+                          setActiveDropZone(null);
+                        };
+                        el.addEventListener("dragend", onNativeDragEnd);
                         requestAnimationFrame(() => {
                           if (pendingDragRef.current !== id) return;
                           setAnimateZones(false);
+                          setActiveDropZone(`${state}-${i}`);
                           setDraggingId(id);
                         });
                       }}
