@@ -1,7 +1,9 @@
-# Wedge, yet another issue tracker
+# Wedge, an almost sensible issue tracker
 
 Wedge is simple and fast, and forever without bloat. It will never contain your pet feature or integration, but instead
 just do the basics really well and without fuss.
+
+![Screen shot](docs/screenshot.png)
 
 ## Running your own instance
 
@@ -21,7 +23,7 @@ docker compose up -d --build
 ```bash
 cd backend
 python -m pip install -e ".[dev]"
-pytest
+python -m pytest
 ```
 
 **Frontend** (Node.js):
