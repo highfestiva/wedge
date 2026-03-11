@@ -1,6 +1,7 @@
 /**
  * @vitest-environment node
  */
+/// <reference types="node" />
 import { describe, it, expect, vi, afterEach } from "vitest";
 
 describe("Vite Proxy Configuration (Part C)", () => {

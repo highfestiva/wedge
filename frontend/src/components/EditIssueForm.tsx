@@ -26,8 +26,8 @@ export const EditIssueForm: React.FC<EditIssueFormProps> = ({
   const [assignee, setAssignee] = useState(issue?.assignee ?? "");
   const [labelsStr, setLabelsStr] = useState(issue?.labels.join(", ") ?? "");
   const [description, setDescription] = useState(issue?.description ?? "");
-  const [localState, setLocalState] = useState(issue?.state ?? "Backlog");
-  const [localPriority, setLocalPriority] = useState(issue?.priority ?? "none");
+  const [localState, setLocalState] = useState<string>(issue?.state ?? "Backlog");
+  const [localPriority, setLocalPriority] = useState<string>(issue?.priority ?? "none");
   const [showActivity, setShowActivity] = useState(false);
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export const EditIssueForm: React.FC<EditIssueFormProps> = ({
   const handleCancel = () => {
     if (issue) {
       setLocalTitle(issue.title);
-      setDescription(issue.description);
+      setDescription(issue.description ?? "");
       setLocalState(issue.state);
       setLocalPriority(issue.priority);
       setLabelsStr(issue.labels.join(", "));

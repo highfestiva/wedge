@@ -30,12 +30,9 @@ describe("GraphQL Client (Part A)", () => {
     // Given the exported client from src/graphql/client.ts
     // When inspecting the client's fetchOptions
     // Then the headers include an X-User header
-    const opts =
-      typeof client.fetchOptions === "function"
-        ? client.fetchOptions()
-        : client.fetchOptions;
+    const opts = client.fetchOptions as { headers?: Record<string, string> } | undefined;
     expect(opts).toBeDefined();
-    const headers = opts?.headers as Record<string, string> | undefined;
+    const headers = opts?.headers;
     expect(headers).toBeDefined();
     expect(headers!["X-User"]).toBeTruthy();
   });

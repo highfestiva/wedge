@@ -5,3 +5,4 @@ agentic-workflow/
 features/
 .aider*
 .github/
+frontend/dist/

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { CreateIssueInput } from "../types";
+import type { CreateIssueInput, IssueState, Priority } from "../types";
 import { ISSUE_STATES, PRIORITIES } from "../types";
 import { IssueFormFields } from "./IssueFormFields";
 import { ModalOverlay } from "./ModalOverlay";
@@ -17,8 +17,8 @@ export const CreateIssueForm: React.FC<CreateIssueFormProps> = ({
 }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [state, setState] = useState(ISSUE_STATES[0]);
-  const [priority, setPriority] = useState(PRIORITIES[4]); // "none"
+  const [state, setState] = useState<string>(ISSUE_STATES[0]);
+  const [priority, setPriority] = useState<string>(PRIORITIES[4]); // "none"
   const [labels, setLabels] = useState("");
   const [assignee, setAssignee] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -42,8 +42,8 @@ export const CreateIssueForm: React.FC<CreateIssueFormProps> = ({
       projectId,
       title,
       description: description || undefined,
-      state,
-      priority,
+      state: state as IssueState,
+      priority: priority as Priority,
       labels: labels
         ? labels.split(",").map((l) => l.trim()).filter(Boolean)
         : undefined,
