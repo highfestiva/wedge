@@ -14,7 +14,7 @@ export const IssueDetailPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
 
-  const [queryResult] = useQuery({
+  const [queryResult, reexecuteIssueQuery] = useQuery({
     query: ISSUE_QUERY,
     variables: { identifier: identifier ?? "" },
   });
@@ -35,7 +35,11 @@ export const IssueDetailPage: React.FC = () => {
 
   const handleAddComment = (body: string) => {
     log.info(`addComment on ${identifier}`);
-    executeCommentMutation({ issueIdentifier: identifier, body });
+    executeCommentMutation({ issueIdentifier: identifier, body }).then((res) => {
+      if (!res?.error) {
+        reexecuteIssueQuery({ requestPolicy: "network-only" });
+      }
+    });
   };
 
   return (

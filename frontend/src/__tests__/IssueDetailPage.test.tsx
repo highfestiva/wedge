@@ -14,12 +14,13 @@ let mockQueryResult: { fetching: boolean; data?: unknown; error?: unknown } = {
   error: undefined,
 };
 let mockUseQueryArgs: unknown = undefined;
-const mockMutationExecute = vi.fn();
+const mockMutationExecute = vi.fn().mockReturnValue(Promise.resolve({}));
+const mockReexecuteQuery = vi.fn();
 
 vi.mock("urql", () => ({
   useQuery: (args: unknown) => {
     mockUseQueryArgs = args;
-    return [mockQueryResult];
+    return [mockQueryResult, mockReexecuteQuery];
   },
   useMutation: () => [
     { fetching: false, data: undefined, error: undefined },
@@ -77,7 +78,7 @@ function renderDetailPage(identifier = "PROJ-1", projectPrefix = "proj") {
 beforeEach(() => {
   mockQueryResult = { fetching: false, data: undefined, error: undefined };
   mockUseQueryArgs = undefined;
-  mockMutationExecute.mockReset();
+  mockMutationExecute.mockReset().mockReturnValue(Promise.resolve({}));
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });

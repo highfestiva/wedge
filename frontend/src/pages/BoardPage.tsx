@@ -38,7 +38,7 @@ export const BoardPage: React.FC = () => {
     pause: !projectId,
   });
 
-  const [issueResult] = useQuery({
+  const [issueResult, reexecuteIssueQuery] = useQuery({
     query: ISSUE_QUERY,
     variables: { identifier: editingIdentifier ?? "" },
     pause: !editingIdentifier,
@@ -175,7 +175,11 @@ export const BoardPage: React.FC = () => {
   const handleAddComment = (body: string) => {
     if (!editingIdentifier) return;
     log.info(`addComment on ${editingIdentifier}`);
-    executeCommentMutation({ issueIdentifier: editingIdentifier, body });
+    executeCommentMutation({ issueIdentifier: editingIdentifier, body }).then((res) => {
+      if (!res?.error) {
+        reexecuteIssueQuery({ requestPolicy: "network-only" });
+      }
+    });
   };
 
   const handleCreateSubmit = (input: CreateIssueInput) => {
