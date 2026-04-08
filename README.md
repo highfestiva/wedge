@@ -8,6 +8,7 @@ just do the basics really well and without fuss.
 ## Running your own instance
 
 ```bash
+docker network create wedge_network
 docker compose up -d --build
 ```
 

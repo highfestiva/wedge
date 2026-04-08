@@ -202,38 +202,6 @@ describe("BoardPage (Part B)", () => {
   });
 
   // -----------------------------------------------------------------------
-  // Test B.5 — onMoveIssue triggers update mutation with new state
-  // -----------------------------------------------------------------------
-  it("B.5 — onMoveIssue triggers update mutation with new state", () => {
-    // Given the board is rendered with an issue
-    const issue = makeIssue({ identifier: "DEF-1", state: "Backlog" });
-    mockIssuesResult = {
-      fetching: false,
-      data: { issues: { items: [issue], cursor: null } },
-    };
-    renderBoardPage();
-
-    // When a card is dropped into a different column
-    const card = screen.getByTestId("issue-card-DEF-1").closest("[draggable]")!;
-    const targetColumn = screen.getByTestId("column-Todo");
-    const dataTransferData: Record<string, string> = {};
-    const dataTransfer = {
-      setData: (k: string, v: string) => { dataTransferData[k] = v; },
-      getData: (k: string) => dataTransferData[k] ?? "",
-    };
-    fireEvent.dragStart(card, { dataTransfer });
-    fireEvent.drop(targetColumn, { dataTransfer });
-
-    // Then useMutation execute should be called
-    expect(mockMutationExecute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        identifier: "DEF-1",
-        state: expect.any(String),
-      })
-    );
-  });
-
-  // -----------------------------------------------------------------------
   // Test B.6 — onIssueClick navigates to issue detail route
   // -----------------------------------------------------------------------
   it("B.6 — onIssueClick opens issue edit modal", async () => {

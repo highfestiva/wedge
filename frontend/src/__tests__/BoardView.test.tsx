@@ -371,6 +371,36 @@ describe("Sort Order Part 2 — Drop zones and positional detection", () => {
 });
 
 // ===========================================================================
+// Sort Order — Part 7: Column-Level Drop (append)
+// ===========================================================================
+describe("Sort Order Part 7 — Column-level drop appends at end", () => {
+  it("7.3 — column-level drop (not on a specific drop zone) appends at end", () => {
+    // Given BoardView with two issues in a column
+    const onMoveIssue = vi.fn();
+    const issues: Issue[] = [
+      makeIssue({ identifier: "WDG-1", id: "1", sortOrder: 1.0, state: "Todo" }),
+      makeIssue({ identifier: "WDG-2", id: "2", sortOrder: 2.0, state: "Todo" }),
+      makeIssue({ identifier: "WDG-X", id: "x", sortOrder: 1.0, state: "Backlog" }),
+    ];
+    render(<BoardView issues={issues} onMoveIssue={onMoveIssue} />);
+
+    // When an issue from another column is dropped on the column container (not on a specific drop zone between cards)
+    const card = screen.getByTestId("issue-card-WDG-X").closest("[draggable]")!;
+    const column = screen.getByTestId("column-Todo");
+    const dataTransferData: Record<string, string> = {};
+    const dataTransfer = {
+      setData: (k: string, v: string) => { dataTransferData[k] = v; },
+      getData: (k: string) => dataTransferData[k] ?? "",
+    };
+    fireEvent.dragStart(card, { dataTransfer });
+    fireEvent.drop(column, { dataTransfer });
+
+    // Then onMoveIssue is called with targetIndex equal to the number of issues in the target column (append)
+    expect(onMoveIssue).toHaveBeenCalledWith("WDG-X", "Todo", 2);
+  });
+});
+
+// ===========================================================================
 // Sort Order — Part 6: Drag Drop Visual Feedback
 // ===========================================================================
 describe("Sort Order Part 6 — Drag drop visual feedback", () => {

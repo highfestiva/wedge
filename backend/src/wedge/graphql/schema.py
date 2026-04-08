@@ -17,7 +17,7 @@ from wedge.repository.project_repository import ProjectRepository
 # ---------------------------------------------------------------------------
 
 
-def _require_user(info: strawberry.types.Info) -> str:
+def _require_user(info: strawberry.Info) -> str:
     """Extract and validate X-User header.  Raises GraphQLError if missing."""
     user = info.context.get("user")
     if not user:
@@ -25,7 +25,7 @@ def _require_user(info: strawberry.types.Info) -> str:
     return user
 
 
-def _get_db(info: strawberry.types.Info):
+def _get_db(info: strawberry.Info):
     return info.context["db"]
 
 
@@ -132,13 +132,13 @@ def _issue_to_type(i) -> IssueType:
 @strawberry.type
 class Query:
     @strawberry.field
-    async def projects(self, info: strawberry.types.Info) -> list[ProjectType]:
+    async def projects(self, info: strawberry.Info) -> list[ProjectType]:
         repo = ProjectRepository(_get_db(info))
         projects = await repo.list_all()
         return [_project_to_type(p) for p in projects]
 
     @strawberry.field
-    async def issue(self, info: strawberry.types.Info, identifier: str) -> IssueType:
+    async def issue(self, info: strawberry.Info, identifier: str) -> IssueType:
         repo = IssueRepository(_get_db(info))
         try:
             issue = await repo.get_by_identifier(identifier)
@@ -149,7 +149,7 @@ class Query:
     @strawberry.field
     async def issues(
         self,
-        info: strawberry.types.Info,
+        info: strawberry.Info,
         project_id: str,
         state: Optional[str] = None,
         assignee: Optional[str] = None,
@@ -178,7 +178,7 @@ class Mutation:
     @strawberry.mutation
     async def create_project(
         self,
-        info: strawberry.types.Info,
+        info: strawberry.Info,
         name: str,
         prefix: str,
         description: Optional[str] = None,
@@ -194,7 +194,7 @@ class Mutation:
     @strawberry.mutation
     async def create_issue(
         self,
-        info: strawberry.types.Info,
+        info: strawberry.Info,
         project_id: str,
         title: str,
         description: Optional[str] = None,
@@ -219,7 +219,7 @@ class Mutation:
     @strawberry.mutation
     async def update_issue(
         self,
-        info: strawberry.types.Info,
+        info: strawberry.Info,
         identifier: str,
         title: Optional[str] = None,
         description: Optional[str] = None,
@@ -245,7 +245,7 @@ class Mutation:
     @strawberry.mutation
     async def add_comment(
         self,
-        info: strawberry.types.Info,
+        info: strawberry.Info,
         issue_identifier: str,
         body: str,
     ) -> CommentType:
@@ -262,7 +262,7 @@ class Mutation:
     @strawberry.mutation
     async def delete_issue(
         self,
-        info: strawberry.types.Info,
+        info: strawberry.Info,
         identifier: str,
     ) -> bool:
         _require_user(info)
