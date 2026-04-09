@@ -1,6 +1,6 @@
 import React from "react";
 
-export const NotFound: React.FC = () => {
+export function NotFound() {
   return (
     <div data-testid="not-found-page" className="flex flex-col items-center justify-center py-32 text-center">
       <div className="text-6xl font-bold text-t-ghost">404</div>

@@ -10,7 +10,7 @@ import { createLogger } from "../utils/logger";
 
 const log = createLogger("issue");
 
-export const IssueDetailPage: React.FC = () => {
+export function IssueDetailPage() {
   const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
 

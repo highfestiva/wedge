@@ -5,7 +5,7 @@ export interface ModalOverlayProps {
   children: React.ReactNode;
 }
 
-export const ModalOverlay: React.FC<ModalOverlayProps> = ({ onOverlayClick, children }) => {
+export function ModalOverlay({ onOverlayClick, children }: ModalOverlayProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onOverlayClick?.();

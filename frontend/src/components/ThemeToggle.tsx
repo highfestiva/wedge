@@ -9,7 +9,7 @@ function getInitialTheme(): Theme {
   return (localStorage.getItem(STORAGE_KEY) as Theme) ?? "light";
 }
 
-export const ThemeToggle: React.FC = () => {
+export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {

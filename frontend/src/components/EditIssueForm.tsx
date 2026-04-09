@@ -14,14 +14,14 @@ export interface EditIssueFormProps {
   onCancel?: () => void;
 }
 
-export const EditIssueForm: React.FC<EditIssueFormProps> = ({
+export function EditIssueForm({
   issue = null,
   loading = false,
   error = null,
   onUpdateField,
   onAddComment,
   onCancel,
-}) => {
+}: EditIssueFormProps) {
   const [localTitle, setLocalTitle] = useState(issue?.title ?? "");
   const [assignee, setAssignee] = useState(issue?.assignee ?? "");
   const [labelsStr, setLabelsStr] = useState(issue?.labels.join(", ") ?? "");

@@ -7,10 +7,10 @@ export interface CommentsSectionProps {
   onAddComment?: (body: string) => void;
 }
 
-export const CommentsSection: React.FC<CommentsSectionProps> = ({
+export function CommentsSection({
   comments,
   onAddComment,
-}) => {
+}: CommentsSectionProps) {
   const [body, setBody] = useState("");
 
   const handleSubmit = () => {

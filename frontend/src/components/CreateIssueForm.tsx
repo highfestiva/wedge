@@ -10,11 +10,11 @@ export interface CreateIssueFormProps {
   onClose?: () => void;
 }
 
-export const CreateIssueForm: React.FC<CreateIssueFormProps> = ({
+export function CreateIssueForm({
   projectId,
   onSubmit,
   onClose,
-}) => {
+}: CreateIssueFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [state, setState] = useState<string>(ISSUE_STATES[0]);

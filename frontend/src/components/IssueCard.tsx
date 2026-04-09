@@ -15,7 +15,7 @@ const priorityDot: Record<string, string> = {
   none: "bg-slate-600",
 };
 
-export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
+export function IssueCard({ issue, onClick }: IssueCardProps) {
   const initials = issue.assignee ? getInitials(issue.assignee) : "—";
   const avatarStyle = issue.assignee
     ? { backgroundColor: hashColor(issue.assignee) }

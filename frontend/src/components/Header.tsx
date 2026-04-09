@@ -7,7 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { ProjectSelector } from "./ProjectSelector";
 import type { Project } from "../types";
 
-export const Header: React.FC = () => {
+export function Header() {
   const { projectPrefix } = useParams<{ projectPrefix: string }>();
   const navigate = useNavigate();
   const { onCreateIssue } = useCreateIssueAction();

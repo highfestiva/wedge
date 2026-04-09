@@ -24,7 +24,7 @@ const RouteLogger: React.FC = () => {
   return null;
 };
 
-export const App: React.FC = () => {
+export default function App() {
   return (
     <Provider value={client}>
       <BrowserRouter>
@@ -52,5 +52,3 @@ export const App: React.FC = () => {
     </Provider>
   );
 };
-
-export default App;

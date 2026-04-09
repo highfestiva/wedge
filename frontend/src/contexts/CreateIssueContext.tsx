@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, PropsWithChildren } from "react";
 
 type Handler = (() => void) | null;
 
@@ -9,7 +9,7 @@ const Ctx = createContext<{
 
 export const useCreateIssueAction = () => useContext(Ctx);
 
-export const CreateIssueActionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function CreateIssueActionProvider({ children }: PropsWithChildren) {
   const [onCreateIssue, setOnCreateIssue] = useState<Handler>(null);
   return <Ctx.Provider value={{ onCreateIssue, setOnCreateIssue }}>{children}</Ctx.Provider>;
 };

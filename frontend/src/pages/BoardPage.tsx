@@ -14,7 +14,7 @@ import type { Issue, IssueState, CreateIssueInput, Project } from "../types";
 
 const log = createLogger("board");
 
-export const BoardPage: React.FC = () => {
+export function BoardPage() {
   const { projectPrefix } = useParams<{ projectPrefix: string }>();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingIdentifier, setEditingIdentifier] = useState<string | null>(null);

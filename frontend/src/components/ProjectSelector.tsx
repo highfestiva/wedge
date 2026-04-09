@@ -7,11 +7,11 @@ export interface ProjectSelectorProps {
   onSelect?: (prefix: string) => void;
 }
 
-export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
+export function ProjectSelector({
   projects,
   currentProjectPrefix,
   onSelect,
-}) => {
+}: ProjectSelectorProps) {
   return (
     <div>
       <label htmlFor="project-selector" className="project-select-label">

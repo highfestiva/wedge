@@ -52,13 +52,13 @@ const DropZone: React.FC<{
   );
 };
 
-export const BoardView: React.FC<BoardViewProps> = ({
+export function BoardView({
   issues = [],
   loading = false,
   error = null,
   onMoveIssue,
   onIssueClick,
-}) => {
+}: BoardViewProps) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeDropZone, setActiveDropZone] = useState<string | null>(null);
   const deactivateTimer = useRef<number | null>(null);
